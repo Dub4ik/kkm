@@ -6,6 +6,6 @@ Copyright (c) 2005,2007
 
 VERSION = '2.0'
 
-from kkm import *
-from Exceptions import *
-from Atol import *
+from .kkm import *
+from .Exceptions import *
+from .Atol import *

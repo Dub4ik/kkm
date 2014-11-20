@@ -18,8 +18,8 @@
        Приложение к протоколу работы ККМ (2009)
 '''
 
-import kkm
-from Exceptions import *
+from . import kkm
+from .Exceptions import *
 
 from decimal import Decimal
 import string
@@ -135,66 +135,66 @@ _atol_type4_payment = 4  # пл. картой
 # type.model: (name, type, model, majorver, minorver, build,
 #              maxstring, klishelen, klishemax)
 _modelTable = {
-    '1.14': (u'Феликс-Р Ф', 1, 14, 2, 3, 2185, 20, 20, 8),
-    '1.24': (u'Феликс-Р К', 1, 24, 2, 4, 3700, 38, 38, 8),
-    '1.41': (u'PayVKP-80K', 1, 24, 2, 4, 3700, 42, 42, 8),
+    '1.14': ('Феликс-Р Ф', 1, 14, 2, 3, 2185, 20, 20, 8),
+    '1.24': ('Феликс-Р К', 1, 24, 2, 4, 3700, 38, 38, 8),
+    '1.41': ('PayVKP-80K', 1, 24, 2, 4, 3700, 42, 42, 8),
     }
 _atol_StringMax_idx = 6
 _atol_KlisheLen_idx = 7
 _atol_KlisheMax_idx = 8
 
 exceptionTable = {
-    1: KKMCommonErr(u'Контрольная лента обработана без ошибок.'),
+    1: KKMCommonErr('Контрольная лента обработана без ошибок.'),
     8: KKMWrongMoneyErr,
     10: KKMWrongQuantityErr,
-    15: KKMCommonErr(u'Повторная скидка на операцию не возможна'),
-    20: KKMCommonErr(u'Неверная длина'),
-    26: KKMCommonErr(u'Отчет с гашением прерван. Вход в режим заблокирован'),
-    30: KKMCommonErr(u'Вход в режим заблокирован'),
+    15: KKMCommonErr('Повторная скидка на операцию не возможна'),
+    20: KKMCommonErr('Неверная длина'),
+    26: KKMCommonErr('Отчет с гашением прерван. Вход в режим заблокирован'),
+    30: KKMCommonErr('Вход в режим заблокирован'),
     102: KKMIncorectModeErr,
     103: KKMOutOfPaperErr,
-    106: KKMCommonErr(u'Неверный тип чека'),
-    114: KKMCommonErr(u'Сумма платежей меньше суммы чека'),
-    117: KKMCommonErr(u'Переполнение суммы платежей'),
-    122: KKMCommonErr(u'Данная модель ККМ не может выполнить команду'),
-    123: KKMCommonErr(u'Неверная величина скидки / надбавки'),
-    127: KKMCommonErr(u'Переполнение при умножении'),
+    106: KKMCommonErr('Неверный тип чека'),
+    114: KKMCommonErr('Сумма платежей меньше суммы чека'),
+    117: KKMCommonErr('Переполнение суммы платежей'),
+    122: KKMCommonErr('Данная модель ККМ не может выполнить команду'),
+    123: KKMCommonErr('Неверная величина скидки / надбавки'),
+    127: KKMCommonErr('Переполнение при умножении'),
     134: KKMLowPaymentErr,
     136: KKMNeedZReportErr,
-    140: KKMCommonErr(u'Неверный пароль'),
+    140: KKMCommonErr('Неверный пароль'),
     143: KKMDoubleZReportErr,
-    151: KKMCommonErr(u'Подсчет суммы сдачи не возможен'),
-    154: KKMCommonErr(u'Чек закрыт - операция невозможна'),
-    155: KKMCommonErr(u'Чек открыт - операция невозможна'),
-    156: KKMCommonErr(u'Смена открыта - операция невозможна'),
-    190: KKMCommonErr(u'Необходимо провести профилактические работы'),
-    201: KKMCommonErr(u'Нет связи с внешним устройством'),
-    209: KKMCommonErr(u'Перегрев головки принтера'),
-    210: KKMCommonErr(u'Ошибка обмена с ЭКЛЗ на уровне интерфейса I2O')
+    151: KKMCommonErr('Подсчет суммы сдачи не возможен'),
+    154: KKMCommonErr('Чек закрыт - операция невозможна'),
+    155: KKMCommonErr('Чек открыт - операция невозможна'),
+    156: KKMCommonErr('Смена открыта - операция невозможна'),
+    190: KKMCommonErr('Необходимо провести профилактические работы'),
+    201: KKMCommonErr('Нет связи с внешним устройством'),
+    209: KKMCommonErr('Перегрев головки принтера'),
+    210: KKMCommonErr('Ошибка обмена с ЭКЛЗ на уровне интерфейса I2O')
 }
 
 
 def checkException(ans):
     try:
         if (ans[0] != 'U'):
-            logger.error(unicode(KKMUnknownAnswerErr))
+            logger.error(str(KKMUnknownAnswerErr))
             raise KKMUnknownAnswerErr
         else:
             raiseException(ord(ans[1]))
             return ans
     except IndexError:
-        logger.error(unicode(KKMUnknownAnswerErr))
+        logger.error(str(KKMUnknownAnswerErr))
         raise KKMUnknownAnswerErr
 
 
 def raiseException(code):
     if (code != 0):
         try:
-            logger.error(unicode(exceptionTable[code]))
+            logger.error(str(exceptionTable[code]))
             raise exceptionTable[code]
         except KeyError:
-            logger.error(unicode(KKMUnknownErr(u'Неизвестный код ошибки: %d' % code)))
-            raise KKMUnknownErr(u'Неизвестный код ошибки: %d' % code)
+            logger.error(str(KKMUnknownErr('Неизвестный код ошибки: %d' % code)))
+            raise KKMUnknownErr('Неизвестный код ошибки: %d' % code)
 
 
 def _escaping(data):
@@ -255,9 +255,9 @@ class AtolKKM(kkm.KKM):
         try:
             self._kkm = serial.Serial(**self._device)
         except:
-            raise KKMCommonErr(u'System error at opening KKM device')
+            raise KKMCommonErr('System error at opening KKM device')
         if (not self._kkm):
-            raise KKMCommonErr(u'Unknown error at opening KKM device')
+            raise KKMCommonErr('Unknown error at opening KKM device')
 
     def _set_readtimeout(self, timeout):
         self._kkm.setTimeout(timeout)
@@ -317,7 +317,7 @@ class AtolKKM(kkm.KKM):
                                         ch = kkm.read(1)
                                         #print "3[%s]" %(ch)
                                         if (ch == ''):
-                                            logger.error('%s: Failed %s attempts of receiving ENQ', unicode(KKMNoAnswerErr), _atol_CON_attempt)
+                                            logger.error('%s: Failed %s attempts of receiving ENQ', str(KKMNoAnswerErr), _atol_CON_attempt)
                                             raise KKMNoAnswerErr
                                         elif (ch == _atol_ENQ):
                                             break
@@ -328,7 +328,7 @@ class AtolKKM(kkm.KKM):
                                         self._set_readtimeout(_atol_T2_timeout)
                                         ch = kkm.read(1)
                                         if (ch == ''):
-                                            logger.error('%s: No data received on ACK', unicode(KKMNoAnswerErr))
+                                            logger.error('%s: No data received on ACK', str(KKMNoAnswerErr))
                                             raise KKMNoAnswerErr
                                         elif (ch == _atol_ENQ):
                                             break
@@ -391,14 +391,14 @@ class AtolKKM(kkm.KKM):
                                     if wait_stx >= _atol_STX_attempt - 1:
                                         raise KKMNoAnswerErr ####
                                 kkm.write(_atol_EOT)
-                                logger.error('%s: Failed %s attempts of sending ACK' % (unicode(KKMNoAnswerErr), _atol_ACK_attempt))
+                                logger.error('%s: Failed %s attempts of sending ACK' % (str(KKMNoAnswerErr), _atol_ACK_attempt))
                                 raise KKMNoAnswerErr
                         kkm.write(_atol_EOT)
-                        logger.error('%s: Failed %s attempts of sending data' % (unicode(KKMNoAnswerErr), _atol_ACK_attempt))
+                        logger.error('%s: Failed %s attempts of sending data' % (str(KKMNoAnswerErr), _atol_ACK_attempt))
                         raise KKMConnectionErr
                 if not is_answered:
                     kkm.write(_atol_EOT)
-                    logger.error('%s: Failed %s attempts of sending ENQ' % (unicode(KKMNoAnswerErr), _atol_ENQ_attempt))
+                    logger.error('%s: Failed %s attempts of sending ENQ' % (str(KKMNoAnswerErr), _atol_ENQ_attempt))
                     raise KKMConnectionErr
                     break
             kkm.write(_atol_EOT)
@@ -406,15 +406,15 @@ class AtolKKM(kkm.KKM):
             import sys
             exc = sys.exc_info()
             if exc[1].errno == 19:
-                logger.error('(1) %s' % unicode(KKMNoDeviceErr))
+                logger.error('(1) %s' % str(KKMNoDeviceErr))
                 raise KKMNoDeviceErr
             else:
-                logger.error('(2) %s' % unicode(e))
+                logger.error('(2) %s' % str(e))
                 raise KKMConnectionErr
         except Exception as e:  # win32file raise common exception, not OSError as Linux
-            logger.error('(2) %s' % unicode(e))
+            logger.error('(2) %s' % str(e))
             raise KKMConnectionErr
-        logger.error('(3) %s' % unicode(KKMConnectionErr))
+        logger.error('(3) %s' % str(KKMConnectionErr))
         raise KKMConnectionErr
 
     def str2atol(self, txt, length):
@@ -422,7 +422,7 @@ class AtolKKM(kkm.KKM):
 
         C локализацией и дополнением пробелами до значения length.
         """
-        txt = unicode(txt).encode('cp866')
+        txt = str(txt).encode('cp866')
         ctrlNum = 0
         for c in txt:
             if c < ' ':
@@ -470,7 +470,7 @@ class AtolKKM(kkm.KKM):
             else:
                 zero = ''
             val = val + zero + hex(dec)[2:]
-        return long(val)
+        return int(val)
 
     def money2atol(self, money, width=None):
         """Преобразование денежной суммы (decimal) в формат ккм (МДЕ).
@@ -480,13 +480,13 @@ class AtolKKM(kkm.KKM):
         if (width == None):
             width = self._moneyWidth
         elif (width > self._moneyWidth):
-            logger.error(unicode(KKMWrongMoneyErr(u'Затребована ширина превышающая максимально допустимое значение')))
-            raise KKMWrongMoneyErr(u'Затребована ширина превышающая максимально допустимое значение')
+            logger.error(str(KKMWrongMoneyErr('Затребована ширина превышающая максимально допустимое значение')))
+            raise KKMWrongMoneyErr('Затребована ширина превышающая максимально допустимое значение')
         money = round(money * self._moneyPrecision)
         if (money > self._moneyMax):
-            logger.error(unicode(KKMWrongMoneyErr(u'Число типа "money" превышает максимально допустимое значение')))
-            raise KKMWrongMoneyErr(u'Число типа "money" превышает максимально допустимое значение')
-        return self.number2atol(long(money), width)
+            logger.error(str(KKMWrongMoneyErr('Число типа "money" превышает максимально допустимое значение')))
+            raise KKMWrongMoneyErr('Число типа "money" превышает максимально допустимое значение')
+        return self.number2atol(int(money), width)
 
     def atol2money(self, money):
         """Преобразование из формата ккм (МДЕ) в денежную сумму (decimal).
@@ -502,21 +502,21 @@ class AtolKKM(kkm.KKM):
         if (width == None):
             width = self._quantityWidth
         elif (width > self._quantityWidth):
-            logger.error(unicode(KKMWrongQuantityErr(u'Затребована ширина превышающая максимально допустимое значение')))
-            raise KKMWrongQuantityErr(u'Затребована ширина превышающая максимально допустимое значение')
+            logger.error(str(KKMWrongQuantityErr('Затребована ширина превышающая максимально допустимое значение')))
+            raise KKMWrongQuantityErr('Затребована ширина превышающая максимально допустимое значение')
         quantity = round(quantity * self._quantityPrecision)  # Марсель! Округлять или срезать ???
         if (quantity > self._quantityMax):
-            logger.error(unicode(KKMWrongQuantityErr(u'Число типа "quantity" превышает максимально допустимое значение')))
-            raise KKMWrongQuantityErr(u'Число типа "quantity" превышает максимально допустимое значение')
+            logger.error(str(KKMWrongQuantityErr('Число типа "quantity" превышает максимально допустимое значение')))
+            raise KKMWrongQuantityErr('Число типа "quantity" превышает максимально допустимое значение')
         quantity = str(quantity)
         dot = string.find(quantity, '.')
         if (dot > 0):
             quantity = quantity[0:dot]
         else:
-            logger.critical(str(RuntimeError(u'Невозможное значение')))
-            raise RuntimeError(u'Невозможное значение')
+            logger.critical(str(RuntimeError('Невозможное значение')))
+            raise RuntimeError('Невозможное значение')
         # Для скорости можно сдублировать, иначе - лишнее двойное преобразование
-        return self.number2atol(long(quantity), width)
+        return self.number2atol(int(quantity), width)
 
     def atol2quantity(self, quantity):
         """Преобразование из формата ккм (МДЕ) в количество.
@@ -1033,7 +1033,7 @@ class AtolKKM(kkm.KKM):
             else:
                 self._reportTable[type_][0](self)
         except KeyError:
-            raise KKMReportErr(u'Неизвестный тип отчета')
+            raise KKMReportErr('Неизвестный тип отчета')
 
     ### Команды режима программирования
     # <1>стр.44
@@ -1080,7 +1080,7 @@ class AtolKKM(kkm.KKM):
         args в виде {'параметр': значение,}
         """
         try:
-            for k in args.keys():
+            for k in list(args.keys()):
                 table, row, field, bitmask, rtype, length, trans = self._progTable[k]
                 if (trans == None):
                     value = args[k]

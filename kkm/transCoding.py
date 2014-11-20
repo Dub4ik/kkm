@@ -25,7 +25,7 @@ class translateMeta(type):
         cls.__registry[name] = cls
 
     def getTableByAlias(cls, name):
-        for tbl in cls.__registry.values():
+        for tbl in list(cls.__registry.values()):
             for alias in tbl.aliases:
                 if alias == name:
                     return tbl
@@ -67,8 +67,8 @@ class translateMeta(type):
 
 
 #transTable = object
-class transTable(object):
-    __metaclass__ = translateMeta
+class transTable(object, metaclass=translateMeta):
+    pass
 
 
 class koi8r(transTable):

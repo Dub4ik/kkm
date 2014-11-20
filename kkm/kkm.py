@@ -4,7 +4,7 @@
  @author: Marat Khayrullin <xmm.dev@gmail.com>
 '''
 
-from Exceptions import KKMCommonErr, KKMException
+from .Exceptions import KKMCommonErr, KKMException
 
 import os
 import logging
@@ -44,7 +44,7 @@ class KkmMeta(type):
     def __init__(cls, name, base, dict):
         if name != 'KKM':
             cls.__registry[name] = cls
-            print 'registered kkm module =', name
+            print('registered kkm module =', name)
 
     def autoCreate(cls, portParams=None, password=0):
         if not portParams:
@@ -53,23 +53,21 @@ class KkmMeta(type):
             elif os.name == 'nt':
                 portParams = {'port': 2, 'baudrate': 9600}
             else:
-                logger.critical(u'Не поддерживаемая платформа')
-                raise KKMCommonErr(u'Не поддерживаемая платформа')
-        for kkm in cls.__registry.values():
+                logger.critical('Не поддерживаемая платформа')
+                raise KKMCommonErr('Не поддерживаемая платформа')
+        for kkm in list(cls.__registry.values()):
             try:
                 logger.info('KkmMeta.autoCreate type=%s device=%s' % (kkm, str(portParams)))
                 return kkm(portParams, password)
             except KKMException:
                 pass
-        logger.critical(u'Нет связи с ККМ или неизвестная модель ККМ')
-        raise KKMCommonErr(u'Нет связи с ККМ или неизвестная модель ККМ')
+        logger.critical('Нет связи с ККМ или неизвестная модель ККМ')
+        raise KKMCommonErr('Нет связи с ККМ или неизвестная модель ККМ')
     autoCreate = classmethod(autoCreate)
 
 
-class KKM:
+class KKM(metaclass=KkmMeta):
     "Абстактный базовый класс поддержки Контрольно-Кассовых Машин."
-
-    __metaclass__ = KkmMeta
 
     _kkm               = None       # Файловый дескриптор драйвера
     _kkmPassword       = None       # Пароль доступа к ККМ
