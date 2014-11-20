@@ -5,8 +5,8 @@ import os
 
 
 version = re.search("VERSION.*'(.+)'", open(os.path.join('kkm', '__init__.py')).read()).group(1)
-license_data = open('LICENSE').read()
-readme_data = open('README.rst').read()
+license_data = open('LICENSE', encoding='utf-8').read()
+readme_data = open('README.rst', encoding='utf-8').read()
 
 setup(
     name='kkm',
