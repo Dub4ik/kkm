@@ -35,7 +35,7 @@ T5_TIMEOUT_MAP = {
     0xad: 120,
 }
 
-NO_DATA_RETRY_COUNT = 10  # Hack for some cases if not data recieved during response reading
+NO_DATA_RETRY_COUNT = 30  # Hack for some cases if not data recieved during response reading
 
 
 def get_t5_timeout_for(command):

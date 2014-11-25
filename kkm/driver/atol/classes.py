@@ -310,14 +310,13 @@ class Driver(base.KKMDriver):
         if not self._device:
             raise KKMCommonErr('Unknown error at opening KKM device')
 
-    def _set_readtimeout(self, timeout):
+    def _set_read_timeout(self, timeout):
         log.debug('Set read timeout {}.'.format(timeout))
         self._device.setTimeout(timeout)
 
     def _atol_send_data_sequence(self, data):
         device = self._device
         command = data[self._passwordLen // 2]
-        log.debug('Command: {}, Data: {}.'.format(command, data))
         data = _escape(data) + symbol.ETX
         crc = bytes((_calc_crc(data),))
         data = symbol.STX + data + crc
@@ -325,15 +324,19 @@ class Driver(base.KKMDriver):
             # Активный передатчик
             for conection_attempt in range(const.CON_ATTEMPTS):
                 is_answered = False
+                no_data_retry_num = const.NO_DATA_RETRY_COUNT
+                self._set_read_timeout(const.T1_TIMEOUT)
                 for enq_attempt in range(const.ENQ_ATTEMPTS):
-                    log.debug('Sending ENQ #{}.'.format(enq_attempt + 1))
-                    device.write(symbol.ENQ)
-                    self._set_readtimeout(const.T1_TIMEOUT)
+                    if no_data_retry_num >= const.NO_DATA_RETRY_COUNT:
+                        log.debug('Sending ENQ #{}.'.format(enq_attempt + 1))
+                        no_data_retry_num = 0
+                        device.write(symbol.ENQ)
+                    no_data_retry_num += 1
                     response = device.read(1)
-                    log.debug('Recieved: {}.'.format(symbol.get_symbol_name(response)))
                     if len(response) < 1:
-                        log.debug('No data.')
+                        log.debug('No data #{}.'.format(no_data_retry_num))
                         continue
+                    log.debug('Recieved: {}.'.format(symbol.get_symbol_name(response)))
                     if response == symbol.ACK:
                         return self._retrieve_data(command, data)
                     elif response == symbol.NAK:
@@ -367,25 +370,28 @@ class Driver(base.KKMDriver):
 
     def _retrieve_data(self, command, data):
         device = self._device
+        no_data_retry_num = const.NO_DATA_RETRY_COUNT
+        self._set_read_timeout(const.T3_TIMEOUT)
         for ack_attempt in range(const.ACK_ATTEMPTS):
-            log.debug('Sending data #{}: {}.'.format(ack_attempt + 1, data))
-            device.write(data)
-            self._set_readtimeout(const.T3_TIMEOUT)
+            if no_data_retry_num >= const.NO_DATA_RETRY_COUNT:
+                log.debug('Sending data #{}: {}.'.format(ack_attempt + 1, data))
+                no_data_retry_num = 0
+                device.write(data)
+            no_data_retry_num += 1
             response = device.read(1)
-            log.debug('Recieved: {}.'.format(symbol.get_symbol_name(response)))
             if len(response) == 0:
-                log.debug('No data.')
+                log.debug('No data #{}.'.format(no_data_retry_num))
                 continue
+            log.debug('Recieved: {}.'.format(symbol.get_symbol_name(response)))
             if response == symbol.ENQ and ack_attempt == 0:
                 log.debug('ENQ recieved at first place, ignored.')
                 continue
             elif response == symbol.ACK or response == symbol.ENQ:
                 if response == symbol.ACK:
                     device.write(symbol.EOT)
-                    # Активный приемник
+                    self._set_read_timeout(const.get_t5_timeout_for(command))
                     for con_attempt in range(const.CON_ATTEMPTS):
                         log.debug('Sending CON #{}.'.format(con_attempt + 1))
-                        self._set_readtimeout(const.get_t5_timeout_for(command))
                         response = device.read(1)
                         log.debug('Recieved: {}.'.format(symbol.get_symbol_name(response)))
                         if len(response) == 0:
@@ -396,7 +402,7 @@ class Driver(base.KKMDriver):
                 for ack_attempt_2 in range(const.ACK_ATTEMPTS):
                     log.debug('Sending ACK #{}.'.format(ack_attempt_2 + 1))
                     device.write(symbol.ACK)
-                    self._set_readtimeout(const.T2_TIMEOUT)
+                    self._set_read_timeout(const.T2_TIMEOUT)
                     for stx_attempt in range(const.STX_ATTEMPTS):
                         log.debug('STX waiting #{}.'.format(stx_attempt + 1))
                         response = device.read(1)
@@ -413,7 +419,7 @@ class Driver(base.KKMDriver):
                             full_response = b''
                             prev_symbol = b''
                             no_data_retry_num = 0
-                            self._set_readtimeout(const.T6_TIMEOUT)
+                            self._set_read_timeout(const.T6_TIMEOUT)
                             while True:
                                 response = device.read(1)
                                 if len(response) == 0:
@@ -445,7 +451,7 @@ class Driver(base.KKMDriver):
                                 device.write(symbol.NAK)
                                 break
                             else:
-                                self._set_readtimeout(const.T4_TIMEOUT)
+                                self._set_read_timeout(const.T4_TIMEOUT)
                                 log.debug('ACK sending.')
                                 device.write(symbol.ACK)
                                 log.debug('ACK sent')
@@ -458,7 +464,7 @@ class Driver(base.KKMDriver):
                                 elif response == symbol.STX:
                                     continue
                                 else:
-                                    self._set_readtimeout(2)  # _atol_T???_timeout
+                                    self._set_read_timeout(2)  # _atol_T???_timeout
                                     response = device.read(1)
                                     if len(response) == 0:
                                         return _unescape(full_response)
@@ -621,7 +627,7 @@ class Driver(base.KKMDriver):
         return self.get_current_mode() == modes.INSPECTOR
 
     def is_check_open(self):
-        return self.get_status()[12] != 0
+        return self.get_status()['check_state'] != 0
 
     def set_registration_mode(self, password):
         self.set_mode(modes.REGISTRATION, password)
@@ -645,7 +651,7 @@ class Driver(base.KKMDriver):
         """
         Печать строки на кассовой ленте
         """
-        log.debug('=== Pring string: \'{}\', wrap={} ==='.format(txt, wrap))
+        log.debug('=== print_string(\'{}\', wrap={}):BEGIN ==='.format(txt, wrap))
         idx = 0
         slen = len(txt)
         smax = self.get_string_max()
@@ -656,6 +662,7 @@ class Driver(base.KKMDriver):
             idx += smax
             if not wrap:
                 break
+        log.debug('=== print_string(\'{}\', wrap={}):END ==='.format(txt, wrap))
 
     def print_to_display(self, txt):
         """
@@ -802,10 +809,10 @@ class Driver(base.KKMDriver):
                                           count)
         )
 
-
     def annulate(self):
+        log.info('=== annulate():BEGIN ===')
         check_exception(self._atol_send_data_sequence(self._kkm_password + cmd.ANNULATE))
-
+        log.info('=== annulate():END ===')
 
     def payment(self, sum, pay_type=None):
         """
@@ -813,7 +820,7 @@ class Driver(base.KKMDriver):
         <1>стр.38
         """
         atol_sum = self._money2atol(sum)
-        log.info('=== Payment: {} ({}) ==='.format(sum, atol_sum))
+        log.info('=== payment({}, pay_type={}):BEGIN ==='.format(sum, atol_sum))
         if pay_type is None:
             pay_type = self.cash_pay_type()
         data = b''.join((self._kkm_password,
@@ -822,9 +829,7 @@ class Driver(base.KKMDriver):
                          number2atol(pay_type),
                          atol_sum))
         check_exception(self._atol_send_data_sequence(data))
-
-        # Команды режима отчетов без гашения
-
+        log.info('=== payment({}, pay_type={}):END ==='.format(sum, atol_sum))
 
     def report_wo_clearing(self, report_type):
         data = self._kkm_password + cmd.X_REPORT + number2atol(report_type)
