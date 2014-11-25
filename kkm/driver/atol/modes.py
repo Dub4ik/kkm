@@ -1,0 +1,7 @@
+# -*- coding: utf8 -*-
+SELECT = 0
+REGISTRATION = 1
+X_REPORT = 2
+Z_REPORT = 3
+PROGRAMMING = 4
+INSPECTOR = 5
