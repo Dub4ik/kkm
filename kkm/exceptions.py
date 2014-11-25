@@ -193,7 +193,7 @@ class KKMIncorectModeErr(KKMException):
     """
     Необходима смена режима для выполнения команды
     """
-    _stdMsg = 'Inkorrect mode'
+    _stdMsg = 'Incorrect mode'
     _stdCode = kkmIncorectModeError
 
 
@@ -225,5 +225,5 @@ class KKMDoubleZReportErr(KKMException):
     """
     Обнуленная касса (повторное гашение не возможно)
     """
-    _stdMsg = 'Session alread closed'
+    _stdMsg = 'Session already closed'
     _stdCode = kkmDoubleZReportError

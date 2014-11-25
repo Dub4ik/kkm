@@ -539,20 +539,25 @@ class Driver(base.KKMDriver):
         return self.get_status()[12]
 
     def get_current_state(self):
-        """Запрос кода состояния (режима) ККМ.
-
+        """
+        Запрос кода состояния (режима) ККМ.
         Result: mode, submode, printer, paper
         <1>стр.28
         """
-        ans = self._atol_send_data_sequence(self._kkm_password + cmd.GET_CURRENT_STATE)
+        log.info('=== get_current_state():BEGIN ===')
+        response = self._atol_send_data_sequence(self._kkm_password + cmd.GET_CURRENT_STATE)
         try:
-            mode = ans[1] & 0x0F
-            submode = (ans[1] & 0xF0) >> 4
-            printer = (ans[2] & 0x02) == 1
-            paper = (ans[2] & 0x01) == 1
+            mode = response[1] & 0x0F
+            submode = (response[1] & 0xF0) >> 4
+            printer = (response[2] & 0x02) == 1
+            paper = (response[2] & 0x01) == 1
+            result = (mode, submode, printer, paper,)
+            log.debug('mode={}, submode={}, printer={}, paper={}'.format(*result))
+            return result
         except IndexError:
-            raise KKMUnknownAnswerErr
-        return mode, submode, printer, paper
+            raise KKMUnknownAnswerErr()
+        finally:
+            log.info('=== get_current_state():END ===')
 
     def get_current_mode(self):
         """Запрос режима ККМ
@@ -601,15 +606,15 @@ class Driver(base.KKMDriver):
         Установить режим.
         <1>стр.19
         """
-        log.debug('=== Set mode {}/{} ==='.format(mode, password))
+        log.debug('=== set_mode({}, {}):BEGIN ==='.format(mode, password))
         current_mode = self.get_current_mode()
         if mode != current_mode:
             if current_mode != modes.SELECT:
                 self.reset_mode()
-            check_exception(self._atol_send_data_sequence(self._kkm_password +
-                                                          cmd.SET_MODE +
-                                                          number2atol(mode) +
-                                                          number2atol(password, 8)))
+            data = b''.join((self._kkm_password, cmd.SET_MODE, number2atol(mode),
+                             number2atol(password, 8),))
+            check_exception(self._atol_send_data_sequence(data))
+            log.debug('=== set_mode({}, {}):END ==='.format(mode, password))
 
     def is_registration_mode(self):
         return self.get_current_mode() == modes.REGISTRATION
@@ -672,13 +677,9 @@ class Driver(base.KKMDriver):
                         str2atol(txt, self.get_display_string_max())))
         check_exception(self._atol_send_data_sequence(data))
 
-
     def open_cash_box(self):
         data = self._kkm_password + cmd.OPEN_CASH_BOX
         check_exception(self._atol_send_data_sequence(data))
-
-
-    # Команды режима регистрации <1>стр.34
 
     def get_reg_flags(self):
         flags = 0
@@ -865,6 +866,33 @@ class Driver(base.KKMDriver):
             else:
                 raise KKMReportErr
 
+    def open_session(self, text=None):
+        log.info('=== open_session(\'{}\'):BEGIN'.format(text))
+        data = b''.join((self._kkm_password, cmd.OPEN_SESSION, b'\x00', str2atol(text, len(text))))
+        check_exception(self._atol_send_data_sequence(data))
+        log.info('=== open_session(\'{}\'):END'.format(text))
+
+    def z_report(self):
+        log.info('=== z_report():BEGIN ===')
+        check_exception(self._atol_send_data_sequence(self._kkm_password + cmd.Z_REPORT))
+        mode, submode, printer, paper = self.get_current_state()
+        while mode == 3 and submode == 2:
+            time.sleep(const.REPORT_TIMEOUT)
+            mode, submode, printer, paper = self.get_current_state()
+        if mode == 7 and submode == 1:
+            while mode == 7 and submode == 1:
+                time.sleep(const.REPORT_TIMEOUT)
+                mode, submode, printer, paper = self.get_current_state()
+        else:
+            if mode == 3 and submode == 0:
+                raise KKMFiscalMemoryOverflowErr()
+            if printer:
+                raise KKMPrinterConnectionErr()
+            if paper:
+                raise KKMOutOfPaperErr()
+            else:
+                raise KKMReportErr()
+        log.info('=== z_report():END ===')
 
     def z_report_hold(self):
         """
@@ -879,45 +907,11 @@ class Driver(base.KKMDriver):
         except IndexError:
             raise KKMUnknownAnswerErr
 
-
     def z_report_unhold(self):
         """
         Распечатать отложенные Z-отчёты и отключить режим отложенных Z отчётов.
         """
         check_exception(self._atol_send_data_sequence(self._kkm_password + cmd.Z_REPORT_FROM_MEM))
-
-
-    def z_report(self):
-        check_exception(self._atol_send_data_sequence(self._kkm_password + cmd.Z_REPORT))
-        mode, submode, printer, paper = self.get_current_state()
-        log.debug(str(('00', mode, submode, printer, paper)))
-        while mode == 3 and submode == 2:
-            log.debug(str('32-0'))
-            time.sleep(const.REPORT_TIMEOUT)
-            log.debug(str('32-1'))
-            mode, submode, printer, paper = self.get_current_state()
-            log.debug(str(('32-2', mode, submode, printer, paper)))
-        if mode == 7 and submode == 1:
-            log.debug(str('71-0'))
-            while mode == 7 and submode == 1:
-                log.debug(str('71-1'))
-                time.sleep(const.REPORT_TIMEOUT)
-                log.debug(str('71-2'))
-                mode, submode, printer, paper = self.get_current_state()
-                log.debug(str(('71-3', mode, submode, printer, paper)))
-            return
-        else:
-            log.debug(str(('??', mode, submode, printer, paper)))
-            if mode == 3 and submode == 0:
-                # ZReport finished but an exception will raise
-                raise KKMFiscalMemoryOverflowErr
-            if printer:
-                raise KKMPrinterConnectionErr
-            if paper:
-                raise KKMOutOfPaperErr
-            else:
-                raise KKMReportErr
-
 
     def common_clearing(self):
         check_exception(self._atol_send_data_sequence(self._kkm_password + cmd.COMMON_CLEAR))
