@@ -14,37 +14,30 @@
 <4>: Атол технологии
        Приложение к протоколу работы ККМ (2009)
 """
-import codecs
 import logging
 import sys
 import serial
 import time
 from datetime import datetime
-
-import ipark_lib.hardware.codecs.common as ipark_codecs
+from . import control_symbols as symbol, constants as const, commands as cmd, modes
 from .. import base
+from ..common import TaxArea, DiscountValueType, DiscountSign
 from ...exceptions import *
-from kkm.driver.atol import control_symbols as symbol, constants as const, commands as cmd, modes
 
 
-try:
-    codecs.lookup('cp437-vkp80')
-except LookupError:
-    codecs.register(ipark_codecs.search_function)
-
-log = logging.getLogger('kkm')
+log = logging.getLogger(__name__)
 
 # Битовые значения переменной flags (<1>стр.34)
-_atol_TestOnly_flag = 0x01
-_atol_CheckCash_flag = 0x02
+_atol_test_only_flag = 0x01
+_atol_check_cash_flag = 0x02
 
 # Коды режима отчетов без гашения
-_atol_X_report = 1
-_atol_Department_report = 2
-_atol_Cashier_report = 3
-_atol_Goods_report = 4
-_atol_Hour_report = 5
-_atol_Quantity_report = 7
+_atol_x_report = 1
+_atol_department_report = 2
+_atol_cashier_report = 3
+_atol_goods_report = 4
+_atol_hour_report = 5
+_atol_quantity_report = 7
 
 # Тип закрытия чека (<1>стр.38)
 _atol_cash_payment = 1  # наличными
@@ -64,36 +57,6 @@ _atol_StringMax_idx = 6
 _atol_KlisheLen_idx = 7
 _atol_KlisheMax_idx = 8
 
-exception_table = {
-    1: KKMCommonErr('Контрольная лента обработана без ошибок.'),
-    8: KKMWrongMoneyErr(),
-    10: KKMWrongQuantityErr(),
-    15: KKMCommonErr('Повторная скидка на операцию не возможна'),
-    20: KKMCommonErr('Неверная длина'),
-    26: KKMCommonErr('Отчет с гашением прерван. Вход в режим заблокирован'),
-    30: KKMCommonErr('Вход в режим заблокирован'),
-    102: KKMIncorectModeErr(),
-    103: KKMOutOfPaperErr(),
-    106: KKMCommonErr('Неверный тип чека'),
-    114: KKMCommonErr('Сумма платежей меньше суммы чека'),
-    117: KKMCommonErr('Переполнение суммы платежей'),
-    122: KKMCommonErr('Данная модель ККМ не может выполнить команду'),
-    123: KKMCommonErr('Неверная величина скидки / надбавки'),
-    127: KKMCommonErr('Переполнение при умножении'),
-    134: KKMLowPaymentErr(),
-    136: KKMNeedZReportErr(),
-    140: KKMCommonErr('Неверный пароль'),
-    143: KKMDoubleZReportErr(),
-    151: KKMCommonErr('Подсчет суммы сдачи не возможен'),
-    154: KKMCommonErr('Чек закрыт - операция невозможна'),
-    155: KKMCommonErr('Чек открыт - операция невозможна'),
-    156: KKMCommonErr('Смена открыта - операция невозможна'),
-    190: KKMCommonErr('Необходимо провести профилактические работы'),
-    201: KKMCommonErr('Нет связи с внешним устройством'),
-    209: KKMCommonErr('Перегрев головки принтера'),
-    210: KKMCommonErr('Ошибка обмена с ЭКЛЗ на уровне интерфейса I2O')
-}
-
 _check_types = {
     base.kkm_sell_check: 1,
     base.kkm_return_check: 2,
@@ -109,22 +72,11 @@ def check_exception(response):
         else:
             code = response[1]
             if code > 0:
-                raise_exception(code)
+                raise get_exception_by_error_code(code)
             return response
     except IndexError:
         log.error(str(KKMUnknownAnswerErr))
         raise KKMUnknownAnswerErr
-
-
-def raise_exception(code):
-    if code != 0:
-        ex = exception_table.get(code)
-        if ex:
-            log.error('Device returned error {}: {}'.format(code, ex))
-            raise exception_table[code]
-        else:
-            log.error('Device returned error {}.'.format(code))
-            raise KKMUnknownErr()
 
 
 def _escape(data):
@@ -223,9 +175,9 @@ class Driver(base.KKMDriver):
     Драйвер к ККМ с протоколом обмена компании 'Атол технологии'(версии. 2.4)
     """
 
-    def __init__(self, params, password=0):
-        super().__init__(params)
-        self.__flags = _atol_CheckCash_flag  # Флаги режима регистрации
+    def __init__(self, port, baudrate, password=0):
+        super().__init__({'port': port, 'baudrate': baudrate})
+        self.__flags = _atol_check_cash_flag
         self._kkm_password = number2atol(password, 4)
         self._str_max = 0
         self._klishe_max = 0
@@ -290,7 +242,7 @@ class Driver(base.KKMDriver):
             model_id = str(device_type['type']) + '.' + str(device_type['model'])
         model_info = _models_table.get(model)
         if not model_info:
-            log.error('Unknow device {}'.format(model_id))
+            log.error('Unknow device {}'.format(model))
             raise KKMUnknownModelErr()
         self._str_max = model_info[_atol_StringMax_idx]
         self._klishe_max = model_info[_atol_KlisheMax_idx]
@@ -301,7 +253,7 @@ class Driver(base.KKMDriver):
         Проверить наличие блокировки устройства
         Заблокировать или вывалиться с ошибкой
         """
-        log.debug('=== Open device ===')
+        log.info('=== open_device() ===')
         try:
             self._device = serial.Serial(**self._params)
             super().open_device()
@@ -309,6 +261,7 @@ class Driver(base.KKMDriver):
             raise KKMCommonErr('System error at opening KKM device')
         if not self._device:
             raise KKMCommonErr('Unknown error at opening KKM device')
+        log.debug('=== open_device() finished ===')
 
     def _set_read_timeout(self, timeout):
         log.debug('Set read timeout {}.'.format(timeout))
@@ -493,7 +446,7 @@ class Driver(base.KKMDriver):
             raise KKMUnknownAnswerErr
 
     def get_status(self):
-        log.info('=== get_status:BEGIN ===')
+        log.info('=== get_status() ===')
         response = self._atol_send_data_sequence(self._kkm_password + cmd.GET_STATUS)
         try:
             if response[0] != ord('D'):
@@ -502,23 +455,26 @@ class Driver(base.KKMDriver):
             site = atol2number(response[2:3])
             kkm_datetime = atol_datetime_to_native_datetime(response[3:9])
             flags = response[9]
+            mask = 1 << 1
+            is_session_opened = (flags & mask) == mask
             mashine = atol2number(response[10:14])
             model = response[14]
             version = str(response[15]) + '.' + str(response[16])
             mode = response[17] & 0x0F
             submode = (response[17] & 0xF0) >> 4
             check = atol2number(response[18:20])
-            smena = atol2number(response[20:22])
+            session_num = atol2number(response[20:22])
             check_state = response[22]
             check_sum = atol2number(response[23:28])
-            dot = response[28]
+            dot_position = response[28]
             port = response[29]
             result = {'cashier': cashier, 'site': site, 'datetime': kkm_datetime, 'flags': flags,
                       'mashine': mashine, 'model': model, 'version': version, 'mode': mode,
-                      'submode': submode, 'check': check, 'smena': smena,
-                      'check_state': check_state, 'check_sum': check_sum, 'dot': dot, 'port': port}
+                      'submode': submode, 'check': check, 'is_session_opened': is_session_opened,
+                      'session_num': session_num, 'check_state': check_state,
+                      'check_sum': check_sum, 'dot_position': dot_position, 'port': port}
             log.info('Device status: {}'.format(result))
-            log.info('=== get_status:END ===')
+            log.debug('=== get_status() finished ===')
             return result
         except IndexError:
             raise KKMUnknownAnswerErr()
@@ -544,7 +500,7 @@ class Driver(base.KKMDriver):
         Result: mode, submode, printer, paper
         <1>стр.28
         """
-        log.info('=== get_current_state():BEGIN ===')
+        log.info('=== get_current_state() ===')
         response = self._atol_send_data_sequence(self._kkm_password + cmd.GET_CURRENT_STATE)
         try:
             mode = response[1] & 0x0F
@@ -553,11 +509,10 @@ class Driver(base.KKMDriver):
             paper = (response[2] & 0x01) == 1
             result = (mode, submode, printer, paper,)
             log.debug('mode={}, submode={}, printer={}, paper={}'.format(*result))
+            log.debug('=== get_current_state() finished ===')
             return result
         except IndexError:
             raise KKMUnknownAnswerErr()
-        finally:
-            log.info('=== get_current_state():END ===')
 
     def get_current_mode(self):
         """Запрос режима ККМ
@@ -571,11 +526,11 @@ class Driver(base.KKMDriver):
         majorver, minorver, codepage, build, name
         <1>стр.28,63
         """
-        log.info('=== get_device_info:BEGIN ===')
+        log.info('=== get_device_info() ===')
         response = self._atol_send_data_sequence(self._kkm_password + cmd.GET_DEVICE_TYPE)
         try:
             if response[0] != 0:
-                raise_exception(response[0])
+                raise get_exception_by_error_code(response[0])
             error = response[0]
             protocol = response[1]
             type_ = response[2]
@@ -592,7 +547,7 @@ class Driver(base.KKMDriver):
                   'majorver': majorver, 'minorver': minorver, 'codepage': codepage, 'build': build,
                   'name': name.decode('cp866')}
         log.info('Device info: {}'.format(result))
-        log.info('=== get_device_info:END ===')
+        log.debug('=== get_device_info() finished ===')
         return result
 
     def reset_mode(self):
@@ -606,7 +561,7 @@ class Driver(base.KKMDriver):
         Установить режим.
         <1>стр.19
         """
-        log.debug('=== set_mode({}, {}):BEGIN ==='.format(mode, password))
+        log.info('=== set_mode({},{}) ==='.format(mode, password))
         current_mode = self.get_current_mode()
         if mode != current_mode:
             if current_mode != modes.SELECT:
@@ -614,7 +569,7 @@ class Driver(base.KKMDriver):
             data = b''.join((self._kkm_password, cmd.SET_MODE, number2atol(mode),
                              number2atol(password, 8),))
             check_exception(self._atol_send_data_sequence(data))
-            log.debug('=== set_mode({}, {}):END ==='.format(mode, password))
+            log.debug('=== set_mode({}, {}) finished ==='.format(mode, password))
 
     def is_registration_mode(self):
         return self.get_current_mode() == modes.REGISTRATION
@@ -648,7 +603,7 @@ class Driver(base.KKMDriver):
 
     def set_inspector_mode(self, password):
         # self.SetMode(_atol_Inspector_mode, password)
-        raise KKMNotImplementedErr
+        raise NotImplementedError
 
     # Общие команды
 
@@ -656,7 +611,7 @@ class Driver(base.KKMDriver):
         """
         Печать строки на кассовой ленте
         """
-        log.debug('=== print_string(\'{}\', wrap={}):BEGIN ==='.format(txt, wrap))
+        log.info('=== print_string(\'{}\',wrap={}) ==='.format(txt, wrap))
         idx = 0
         slen = len(txt)
         smax = self.get_string_max()
@@ -667,7 +622,7 @@ class Driver(base.KKMDriver):
             idx += smax
             if not wrap:
                 break
-        log.debug('=== print_string(\'{}\', wrap={}):END ==='.format(txt, wrap))
+        log.debug('=== print_string(\'{}\',wrap={}) finished ==='.format(txt, wrap))
 
     def print_to_display(self, txt):
         """
@@ -684,9 +639,9 @@ class Driver(base.KKMDriver):
     def get_reg_flags(self):
         flags = 0
         if self.is_test_only_mode():
-            flags |= _atol_TestOnly_flag
+            flags |= _atol_test_only_flag
         if self.is_check_cash_mode():
-            flags |= _atol_CheckCash_flag
+            flags |= _atol_check_cash_flag
         return flags
 
     def cash_pay_type(self):
@@ -703,21 +658,25 @@ class Driver(base.KKMDriver):
 
     def cash_income(self, sum):
         """Внесение денег."""
-        data = ''.join((self._kkm_password,
-                        cmd.CASH_INCOME,
-                        number2atol(self.get_reg_flags()),
-                        self._money2atol(sum)))
+        log.info('=== cash_income({}) ==='.format(sum))
+        data = b''.join((self._kkm_password,
+                         cmd.CASH_INCOME,
+                         number2atol(self.get_reg_flags()),
+                         self._money2atol(sum)))
         check_exception(self._atol_send_data_sequence(data))
+        log.debug('=== cash_income({}) finished ==='.format(sum))
 
     def cash_outcome(self, sum):
         """
         Выплата денег (инкасация).
         """
-        data = ''.join((self._kkm_password,
-                        cmd.CASH_OUTCOME,
-                        number2atol(self.get_reg_flags()),
-                        self._money2atol(sum)))
+        log.info('=== cash_outcome({}) ==='.format(sum))
+        data = b''.join((self._kkm_password,
+                         cmd.CASH_OUTCOME,
+                         number2atol(self.get_reg_flags()),
+                         self._money2atol(sum)))
         check_exception(self._atol_send_data_sequence(data))
+        log.debug('=== cash_outcome({}) finished ==='.format(sum))
 
     def open_check(self, check_type=base.kkm_sell_check):
         """
@@ -742,7 +701,7 @@ class Driver(base.KKMDriver):
                  .format(name, price, quantity, department))
         if self.is_pre_test_mode() or self.is_test_only_mode():
             data = b''.join((self._kkm_password, cmd.SELL,
-                             number2atol(self.get_reg_flags() | _atol_TestOnly_flag),
+                             number2atol(self.get_reg_flags() | _atol_test_only_flag),
                              self._money2atol(price), self._quantity2atol(quantity),
                              number2atol(department)))
             check_exception(self._atol_send_data_sequence(data))
@@ -765,7 +724,7 @@ class Driver(base.KKMDriver):
             check_exception(
                 self._atol_send_data_sequence(self._kkm_password + cmd.RETURN_ + \
                                               number2atol(
-                                                  self.get_reg_flags() | _atol_TestOnly_flag) + \
+                                                  self.get_reg_flags() | _atol_test_only_flag) + \
                                               self._money2atol(price) + self.quantity2atol(
                     quantity))
             )
@@ -779,41 +738,30 @@ class Driver(base.KKMDriver):
                                           self.quantity2atol(quantity))
         )
 
-
-    def discount(self, count, area=base.kkm_Sell_dis,
-                 type_=base.kkm_Sum_dis, sign=base.kkm_Discount_dis):
-        """Начисление скидки/надбавки.
-
-        <1>стр.37
+    def discount(self, count, area=TaxArea.WHOLE_CHECK, discount_type=DiscountValueType.PERCENT,
+                 sign=DiscountSign.DISCOUNT):
         """
-        log.info('Discount : ' + str(count) + '\t' + number2atol(count))
-        if area == base.kkm_Sell_dis:
-            area = 1
-        else:
-            area = 0
-        if type_ == base.kkm_Procent_dis:
-            type_ = 0
+        Начисление скидки/надбавки.
+        """
+        log.info('=== discount() ===')
+        area = 1 if area == TaxArea.BY_POSITION else 0
+        if discount_type == DiscountValueType.PERCENT:
+            discount_type = 0
             count = number2atol(count * 100, 5)  # 100.00%
         else:
-            type_ = 1
+            discount_type = 1
             count = self._money2atol(count)
-        if sign == base.kkm_Discount_dis:
-            sign = 0
-        else:
-            sign = 1
-        check_exception(
-            self._atol_send_data_sequence(self._kkm_password + _atol_Discount_cmd + \
-                                          number2atol(self.get_reg_flags()) + \
-                                          number2atol(area) + \
-                                          number2atol(type) + \
-                                          number2atol(sign) + \
-                                          count)
-        )
+        sign = 0 if sign == DiscountSign.DISCOUNT else 1
+        # ---
+        data = b''.join((self._kkm_password, cmd.DISCOUNT, number2atol(self.get_reg_flags()),
+                         number2atol(area), number2atol(discount_type), number2atol(sign), count,))
+        check_exception(self._atol_send_data_sequence(data))
+        log.debug('=== discount() finished ===')
 
     def annulate(self):
-        log.info('=== annulate():BEGIN ===')
+        log.info('=== annulate() ===')
         check_exception(self._atol_send_data_sequence(self._kkm_password + cmd.ANNULATE))
-        log.info('=== annulate():END ===')
+        log.debug('=== annulate() finished ===')
 
     def payment(self, sum, pay_type=None):
         """
@@ -821,7 +769,7 @@ class Driver(base.KKMDriver):
         <1>стр.38
         """
         atol_sum = self._money2atol(sum)
-        log.info('=== payment({}, pay_type={}):BEGIN ==='.format(sum, atol_sum))
+        log.info('=== payment({}, pay_type={}) ==='.format(sum, atol_sum))
         if pay_type is None:
             pay_type = self.cash_pay_type()
         data = b''.join((self._kkm_password,
@@ -830,10 +778,10 @@ class Driver(base.KKMDriver):
                          number2atol(pay_type),
                          atol_sum))
         check_exception(self._atol_send_data_sequence(data))
-        log.info('=== payment({}, pay_type={}):END ==='.format(sum, atol_sum))
+        log.debug('=== payment({}, pay_type={}) finished ==='.format(sum, atol_sum))
 
-    def report_wo_clearing(self, report_type):
-        data = self._kkm_password + cmd.X_REPORT + number2atol(report_type)
+    def x_report(self, report_type=1):
+        data = b''.join((self._kkm_password, cmd.X_REPORT, number2atol(report_type),))
         check_exception(self._atol_send_data_sequence(data))
         mode, submode, printer, paper = self.get_current_state()
         while mode == 2 and submode == 2:
@@ -841,14 +789,11 @@ class Driver(base.KKMDriver):
             mode, submode, printer, paper = self.get_current_state()
             if mode == 2 and submode == 0:
                 if printer:
-                    raise KKMPrinterConnectionErr
+                    raise KKMPrinterConnectionErr()
                 if paper:
-                    raise KKMOutOfPaperErr
+                    raise KKMOutOfPaperErr()
                 else:
                     return
-
-
-    # Команды режима отчетов c гашением
 
     def clearing_report(self):
         check_exception(self._atol_send_data_sequence(self._kkm_password + cmd.CLEARING_REPORT))
@@ -858,22 +803,22 @@ class Driver(base.KKMDriver):
             mode, submode, printer, paper = self.get_current_state()
             if mode == 3 and submode == 0:
                 if printer:
-                    raise KKMPrinterConnectionErr
+                    raise KKMPrinterConnectionErr()
                 if paper:
-                    raise KKMOutOfPaperErr
+                    raise KKMOutOfPaperErr()
                 else:
                     return
             else:
-                raise KKMReportErr
+                raise KKMReportErr()
 
-    def open_session(self, text=None):
-        log.info('=== open_session(\'{}\'):BEGIN'.format(text))
+    def open_session(self, text=''):
+        log.info('=== open_session(\'{}\')'.format(text))
         data = b''.join((self._kkm_password, cmd.OPEN_SESSION, b'\x00', str2atol(text, len(text))))
         check_exception(self._atol_send_data_sequence(data))
-        log.info('=== open_session(\'{}\'):END'.format(text))
+        log.debug('=== open_session(\'{}\') finished'.format(text))
 
     def z_report(self):
-        log.info('=== z_report():BEGIN ===')
+        log.info('=== z_report() ===')
         check_exception(self._atol_send_data_sequence(self._kkm_password + cmd.Z_REPORT))
         mode, submode, printer, paper = self.get_current_state()
         while mode == 3 and submode == 2:
@@ -892,26 +837,32 @@ class Driver(base.KKMDriver):
                 raise KKMOutOfPaperErr()
             else:
                 raise KKMReportErr()
-        log.info('=== z_report():END ===')
+        log.info('=== z_report() finished ===')
 
-    def z_report_hold(self):
+    def z_report_to_memory(self):
         """
         Включить режим формирования отложенных Z отчётов.
         Result: кол-во свободных полей для записи Z-отчётов
         <4>стр.9
         """
+        log.info('=== z_report_to_memory() ===')
         data = self._kkm_password + cmd.Z_REPORT_TO_MEM
-        response = check_exception(self._atol_send_data_sequence(data))
+        response = check_exception(self._atol_send_data_sequence(data))[2]
+        log.info('Z-Report memory info: {}'.format(response))
         try:
-            return response[2]
+            log.debug('=== z_report_to_memory() finished ===')
+            return response
         except IndexError:
             raise KKMUnknownAnswerErr
 
-    def z_report_unhold(self):
+    def z_report_from_memory(self):
         """
         Распечатать отложенные Z-отчёты и отключить режим отложенных Z отчётов.
         """
-        check_exception(self._atol_send_data_sequence(self._kkm_password + cmd.Z_REPORT_FROM_MEM))
+        log.info('=== z_report_from_memory():BEGIN ===')
+        data = self._kkm_password + cmd.Z_REPORT_FROM_MEM
+        check_exception(self._atol_send_data_sequence(data))
+        log.info('=== z_report_from_memory():END ===')
 
     def common_clearing(self):
         check_exception(self._atol_send_data_sequence(self._kkm_password + cmd.COMMON_CLEAR))
@@ -929,17 +880,16 @@ class Driver(base.KKMDriver):
             else:
                 raise KKMReportErr
 
-
     def report(self, report_type):
         report_table = {
-            base.kkm_Clearing_report: (self.clearing_report, None),
-            base.kkm_Z_report: (self.z_report, None),
-            base.kkm_X_report: (self.report_wo_clearing, 1),
-            base.kkm_Department_report: (self.report_wo_clearing, 2),
-            base.kkm_Cashier_report: (self.report_wo_clearing, 3),
-            base.kkm_Goods_report: (self.report_wo_clearing, 4),
-            base.kkm_Hour_report: (self.report_wo_clearing, 5),
-            base.kkm_Quantity_report: (self.report_wo_clearing, 7)
+            base.kkm_clearing_report: (self.clearing_report, None),
+            base.kkm_z_report: (self.z_report, None),
+            base.kkm_x_report: (self.x_report, 1),
+            base.kkm_department_report: (self.x_report, 2),
+            base.kkm_cashier_report: (self.x_report, 3),
+            base.kkm_goods_report: (self.x_report, 4),
+            base.kkm_hour_report: (self.x_report, 5),
+            base.kkm_quantity_report: (self.x_report, 7)
         }
         report = report_table.get(report_type)
         if not report:
@@ -949,44 +899,47 @@ class Driver(base.KKMDriver):
         else:
             report[0](self)
 
-
-    # Команды режима программирования
-    # <1>стр.44
-
-    def read_table(self, table, row, field):
-        data = ''.join((self._kkm_password, cmd.READ_TABLE, number2atol(table), number2atol(row, 4),
-                        number2atol(field)))
+    def _read_table(self, table, row, field):
+        log.info('=== read_table(table={}, row={}, field={}) ==='.format(table, row, field))
+        mask = 255
+        data = b''.join((self._kkm_password, cmd.READ_TABLE, number2atol(table),
+                         bytes((row & (mask << 8), row & mask)), bytes((field,))))
         try:
-            return check_exception(self._atol_send_data_sequence(data))[2:]
+            result = check_exception(self._atol_send_data_sequence(data))[2:]
+            log.debug('Field data: {}'.format(result))
+            log.debug('=== read_table({}, {}, {}) finished ==='.format(table, row, field))
+            return result
         except IndexError:
             raise KKMUnknownAnswerErr
 
+    def _write_table(self, table, row, field, value):
+        log.info('=== write_table(table={}, row={}, field={}, val={}) ==='
+                 .format(table, row, field, value))
+        mask = 255
+        data = b''.join((self._kkm_password, cmd.WRITE_TABLE, number2atol(table),
+                         bytes((row & (mask << 8), row & mask)), bytes((field,)), value))
+        result = check_exception(self._atol_send_data_sequence(data))
+        log.debug('=== write_table({}, {}, {}, {}) finished ==='
+                  .format(table, row, field, value))
+        return result
 
-    def write_table(self, table, row, field, value):
-        data = ''.join(
-            (self._kkm_password, cmd.PROGRAMMING, number2atol(table), number2atol(row, 4),
-             number2atol(field), value))
-        return check_exception(self._atol_send_data_sequence(data))
-
-
-    def programming(self, args):
+    def programming(self, **kwargs):
         """
         Программирование ККМ.
         args в виде {'параметр': значение,}
         """
         # (table,row,field,bitmask,type,length,{None|dict|func})
+        log.info('=== programming({})'.format(kwargs))
         ptable = {
             'kkmNumber': (2, 1, 1, None, 'int', 1, None),
             'multiDepart': (2, 1, 2, None, 'int', 1, {'multi': 0, 'single': 1}),
             'taxType': (2, 1, 11, None, 'int', 1, {'deny': 0, 'all': 1, 'sell': 2}),
             'departName': (2, 1, 15, None, 'int', 1, {0: 0, 1: 1}),
-            'printNotClearedSum': (2, 1, 18, 0b00000011, 'bin', 1,
-                                   {False: 0, 'deny': 0, 'all': 0b00000001,
-                                    'last': 0b00000011, True: 0b11}),
-            'makeIncasation': (
-                2, 1, 18, 0b00000100, 'bin', 1, {False: 0, True: 0b00000100}),
-            'extendedZreport': (
-                2, 1, 18, 0b00001000, 'bin', 1, {False: 0, True: 0b00001000}),
+            'print_protected_sum': (2, 1, 18, 0b00000011, 'bin', 1,
+                                    {False: 0, 'deny': 0, 'all': 0b00000001,
+                                     'last': 0b00000011, True: 0b11}),
+            'allow_encashment': (2, 1, 18, 0b00000100, 'bin', 1, {False: 0, True: 0b00000100}),
+            'extended_z_report': (2, 1, 18, 0b00001000, 'bin', 1, {False: 0, True: 0b00001000}),
             'pushLength': (2, 1, 22, 0b00000111, 'bin', 1, None),  # 0..15
             'onCutCheck': (2, 1, 22, 0b00110000, 'bin', 1,
                            {'save': 0, 'push': 0b010000, 'drop': 0b110000}),
@@ -999,60 +952,53 @@ class Driver(base.KKMDriver):
             'setPayCardName': (12, 3, 1, None, 'string', 10, None)
         }
         try:
-            for k in list(args.keys()):
+            for k, v in kwargs.items():
                 table, row, field, bitmask, rtype, length, trans = ptable[k]
                 if trans is None:
-                    value = args[k]
+                    value = v
                 elif isinstance(trans, dict):  # Dict
-                    value = trans[args[k]]
+                    value = trans[v]
                 elif callable(trans):
-                    value = trans(args[k])
+                    value = trans(v)
                 else:
-                    raise KKMNotImplementedErr
+                    raise NotImplementedError()
                 if bitmask is not None:
-                    old_value = ord(self.read_table(table, row, field))
-                    log.debug(str(('P0 %s %s' % (old_value, bin(old_value)))))
-                    log.debug(str(('P1 %s | (%s & ~%s), %s' % (
-                        bin(value), bin(old_value), bin(bitmask), bin(old_value & ~bitmask)))))
+                    old_value = self._read_table(table, row, field)[0]
                     value |= (old_value & ~bitmask)
-                    log.debug(str(('P2', bin(value), chr(value), 'AA')))
-                    value = chr(value)
+                    log.debug('Old/new: [{}]/[{}]'.format(old_value, value))
+                    value = bytes((value,))
                     # value = number2atol(value, length * 2)
                 elif rtype == 'string':
                     value = str2atol(value, length)
                 elif rtype == 'int':
                     value = number2atol(value, length * 2)  # по 2 знака на байт!
                 else:
-                    raise KKMNotImplementedErr
-                self.write_table(table, row, field, value)
+                    raise NotImplementedError
+                self._write_table(table, row, field, value)
+            log.info('=== programming({}) finished'.format(kwargs))
         except KeyError:
-            raise KKMNotImplementedErr
-
+            raise NotImplementedError()
 
     def set_kkm_password(self, password):
         self._kkm_password = number2atol(password, 4)
-        data = ''.join((self._kkm_password, cmd.PROGRAMMING, number2atol(2), number2atol(1, 4),
+        data = ''.join((self._kkm_password, cmd.WRITE_TABLE, number2atol(2), number2atol(1, 4),
                         number2atol(23), self._kkm_password))
         check_exception(self._atol_send_data_sequence(data))
 
-
     def set_cashier_password(self, cashier, password):
-        data = ''.join((self._kkm_password, cmd.PROGRAMMING, number2atol(3),
+        data = ''.join((self._kkm_password, cmd.WRITE_TABLE, number2atol(3),
                         number2atol(cashier, 4), number2atol(1), number2atol(password, 8)))
         check_exception(self._atol_send_data_sequence(data))
 
-
     def set_admin_password(self, password):
-        data = ''.join((self._kkm_password, cmd.PROGRAMMING, number2atol(3), number2atol(29, 4),
+        data = ''.join((self._kkm_password, cmd.WRITE_TABLE, number2atol(3), number2atol(29, 4),
                         number2atol(1), number2atol(password, 8)))
         check_exception(self._atol_send_data_sequence(data))
-
 
     def set_sys_admin_password(self, password):
-        data = ''.join((self._kkm_password, cmd.PROGRAMMING, number2atol(3), number2atol(30, 4),
+        data = ''.join((self._kkm_password, cmd.WRITE_TABLE, number2atol(3), number2atol(30, 4),
                         number2atol(1), number2atol(password, 8)))
         check_exception(self._atol_send_data_sequence(data))
-
 
     def set_klishe(self, klishe):
         """
@@ -1062,24 +1008,22 @@ class Driver(base.KKMDriver):
         """
         i = 1
         for s in klishe:
-            data = ''.join((self._kkm_password, cmd.PROGRAMMING, number2atol(6), number2atol(i, 4),
+            data = ''.join((self._kkm_password, cmd.WRITE_TABLE, number2atol(6), number2atol(i, 4),
                             number2atol(1), str2atol(s, self.get_klishe_len())))
             check_exception(self._atol_send_data_sequence(data))
             i += 1
             for j in range(i, self.get_clishe_max_len()):
-                data = ''.join((self._kkm_password, cmd.PROGRAMMING, number2atol(6),
+                data = ''.join((self._kkm_password, cmd.WRITE_TABLE, number2atol(6),
                                 number2atol(j, 4), number2atol(1),
                                 str2atol(s, self.get_klishe_len())))
                 check_exception(self._atol_send_data_sequence(data))
 
-
     def set_depart_name(self, depart, name):
-        data = ''.join((self._kkm_password, cmd.PROGRAMMING, number2atol(7), number2atol(depart, 4),
+        data = ''.join((self._kkm_password, cmd.WRITE_TABLE, number2atol(7), number2atol(depart, 4),
                         number2atol(1), str2atol(name, 20)))
         check_exception(self._atol_send_data_sequence(data))
 
-
     def set_tax_rate(self, tax, value):
-        data = ''.join((self._kkm_password, cmd.PROGRAMMING, number2atol(8), number2atol(tax, 4),
+        data = ''.join((self._kkm_password, cmd.WRITE_TABLE, number2atol(8), number2atol(tax, 4),
                         number2atol(1), number2atol(value, 4)))
         check_exception(self._atol_send_data_sequence(data))

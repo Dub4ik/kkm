@@ -7,6 +7,7 @@ import atexit
 import os
 import logging
 
+from .common import TaxArea, DiscountValueType, DiscountSign
 from .. import exceptions as err
 
 
@@ -21,23 +22,15 @@ kkm_Buy_check = 4
 kkm_StornoBuy_check = 5
 kkm_annulate_check = 6
 
-# Discount options
-kkm_Check_dis = 0  # Скидка на чек
-kkm_Sell_dis = 1  # Скидка на позицию
-kkm_Procent_dis = 0  # Процентная скидка
-kkm_Sum_dis = 1  # Скидка суммой
-kkm_Discount_dis = 0  # Скидка
-kkm_Increase_dis = 1  # Надбавка
-
 # Report Types
-kkm_Clearing_report = 1
-kkm_Z_report = 2
-kkm_X_report = 3
-kkm_Department_report = 4
-kkm_Cashier_report = 5
-kkm_Goods_report = 6
-kkm_Hour_report = 7
-kkm_Quantity_report = 8
+kkm_clearing_report = 1
+kkm_z_report = 2
+kkm_x_report = 3
+kkm_department_report = 4
+kkm_cashier_report = 5
+kkm_goods_report = 6
+kkm_hour_report = 7
+kkm_quantity_report = 8
 
 
 class KkmMeta(type):
@@ -203,7 +196,8 @@ class KKMDriver(metaclass=KkmMeta):
     def payment(self, sum, pay_type=None):
         pass
 
-    def discount(self, count, area=kkm_Sell_dis, type_=kkm_Sum_dis, sign=kkm_Discount_dis):
+    def discount(self, count, area=TaxArea.WHOLE_CHECK, discount_type=DiscountValueType.PERCENT,
+                 sign=DiscountSign.DISCOUNT):
         pass
 
     def close_check(self):
