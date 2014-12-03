@@ -22,7 +22,7 @@ class KKMException(Exception):
         return '{}: {}'.format(*self.args)
 
 
-class KKMCommonErr(KKMException):
+class CommonError(KKMException):
     _defaultMessage = 'KKM ERROR'
     _defaultCode = 1
 
@@ -83,7 +83,7 @@ class KKMPrinterConnectionErr(KKMException):
     _defaultCode = 8
 
 
-class KKMOutOfPaperErr(KKMException):
+class OutOfPaperError(KKMException):
     """
     Нет бумаги
     """
@@ -107,7 +107,7 @@ class KKMIncorrectPasswordErr(KKMException):
     _defaultCode = 11
 
 
-class KKMWrongMoneyErr(KKMException):
+class WrongMoneyError(KKMException):
     """
     Неверная цена (сумма)
     """
@@ -115,7 +115,7 @@ class KKMWrongMoneyErr(KKMException):
     _defaultCode = 12
 
 
-class KKMWrongQuantityErr(KKMException):
+class WrongQuantityError(KKMException):
     """
     Неверное количество
     """
@@ -147,7 +147,7 @@ class KKMWrongTimeErr(KKMException):
     _defaultCode = 16
 
 
-class KKMLowPaymentErr(KKMException):
+class LowPaymentError(KKMException):
     """
     Вносимая клиентом сумма меньше суммы чека
     """
@@ -163,7 +163,7 @@ class KKMFiscalMemoryOverflowErr(KKMException):
     _defaultCode = 18
 
 
-class KKMIncorectModeErr(KKMException):
+class InvalidModeForOperationError(KKMException):
     """
     Необходима смена режима для выполнения команды
     """
@@ -187,7 +187,7 @@ class KKMReportErr(KKMException):
     _defaultCode = 21
 
 
-class KKMNeedZReportErr(KKMException):
+class ZReportRequiredError(KKMException):
     """
     Смена превысила 24 часа
     """
@@ -213,33 +213,33 @@ class SessionAlreadyOpenedError(KKMException):
 
 
 exception_table = {
-    1: KKMCommonErr(1, 'Контрольная лента обработана без ошибок.'),
-    8: KKMWrongMoneyErr(8),
-    10: KKMWrongQuantityErr(10),
-    15: KKMCommonErr(15, 'Повторная скидка на операцию не возможна'),
-    20: KKMCommonErr(20, 'Неверная длина'),
-    26: KKMCommonErr(26, 'Отчет с гашением прерван. Вход в режим заблокирован'),
-    30: KKMCommonErr(30, 'Вход в режим заблокирован'),
-    102: KKMIncorectModeErr(102),
-    103: KKMOutOfPaperErr(103),
-    106: KKMCommonErr(106, 'Неверный тип чека'),
-    114: KKMCommonErr(114, 'Сумма платежей меньше суммы чека'),
-    117: KKMCommonErr(117, 'Переполнение суммы платежей'),
-    122: KKMCommonErr(122, 'Данная модель ККМ не может выполнить команду'),
-    123: KKMCommonErr(123, 'Неверная величина скидки / надбавки'),
-    127: KKMCommonErr(127, 'Переполнение при умножении'),
-    134: KKMLowPaymentErr(134),
-    136: KKMNeedZReportErr(136),
-    140: KKMCommonErr(140, 'Неверный пароль'),
+    1: CommonError(1, 'Контрольная лента обработана без ошибок.'),
+    8: WrongMoneyError(8),
+    10: WrongQuantityError(10),
+    15: CommonError(15, 'Повторная скидка на операцию не возможна'),
+    20: CommonError(20, 'Неверная длина'),
+    26: CommonError(26, 'Отчет с гашением прерван. Вход в режим заблокирован'),
+    30: CommonError(30, 'Вход в режим заблокирован'),
+    102: InvalidModeForOperationError(102),
+    103: OutOfPaperError(103),
+    106: CommonError(106, 'Неверный тип чека'),
+    114: CommonError(114, 'Сумма платежей меньше суммы чека'),
+    117: CommonError(117, 'Переполнение суммы платежей'),
+    122: CommonError(122, 'Данная модель ККМ не может выполнить команду'),
+    123: CommonError(123, 'Неверная величина скидки / надбавки'),
+    127: CommonError(127, 'Переполнение при умножении'),
+    134: LowPaymentError(134),
+    136: ZReportRequiredError(136),
+    140: CommonError(140, 'Неверный пароль'),
     143: DoubleZReportError(143),
-    151: KKMCommonErr(151, 'Подсчет суммы сдачи не возможен'),
-    154: KKMCommonErr(154, 'Чек закрыт - операция невозможна'),
-    155: KKMCommonErr(155, 'Чек открыт - операция невозможна'),
+    151: CommonError(151, 'Подсчет суммы сдачи не возможен'),
+    154: CommonError(154, 'Чек закрыт - операция невозможна'),
+    155: CommonError(155, 'Чек открыт - операция невозможна'),
     156: SessionAlreadyOpenedError(),
-    190: KKMCommonErr(190, 'Необходимо провести профилактические работы'),
-    201: KKMCommonErr(201, 'Нет связи с внешним устройством'),
-    209: KKMCommonErr(209, 'Перегрев головки принтера'),
-    210: KKMCommonErr(210, 'Ошибка обмена с ЭКЛЗ на уровне интерфейса I2O')
+    190: CommonError(190, 'Необходимо провести профилактические работы'),
+    201: CommonError(201, 'Нет связи с внешним устройством'),
+    209: CommonError(209, 'Перегрев головки принтера'),
+    210: CommonError(210, 'Ошибка обмена с ЭКЛЗ на уровне интерфейса I2O')
 }
 
 

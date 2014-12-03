@@ -51,7 +51,7 @@ class KkmMeta(type):
                 port_params = {'port': 2, 'baudrate': 9600}
             else:
                 log.critical('Не поддерживаемая платформа')
-                raise err.KKMCommonErr('Не поддерживаемая платформа')
+                raise err.CommonError('Не поддерживаемая платформа')
         for kkm in list(mcs.__registry.values()):
             try:
                 log.debug('KkmMeta.autoCreate type={} device={}'.format(kkm, port_params))
@@ -59,7 +59,7 @@ class KkmMeta(type):
             except err.KKMException:
                 pass
         log.critical('Нет связи с ККМ или неизвестная модель ККМ')
-        raise err.KKMCommonErr('Нет связи с ККМ или неизвестная модель ККМ')
+        raise err.CommonError('Нет связи с ККМ или неизвестная модель ККМ')
 
 
 class KKMDriver(metaclass=KkmMeta):
@@ -95,7 +95,7 @@ class KKMDriver(metaclass=KkmMeta):
             self._device = None
         except:
             log.critical('Can\'t close KKM device.')
-            raise err.KKMCommonErr('Can\'t close KKM device.')
+            raise err.CommonError('Can\'t close KKM device.')
 
     def is_opened(self):
         return self._device is not None

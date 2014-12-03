@@ -1,7 +1,7 @@
 # -*- coding: utf8 -*-
-GET_LAST_SUMMARY = b'X'
-GET_STATUS = b'?'
-GET_CURRENT_STATE = b'E'
+GET_LAST_SUMMARY = b'\x58'
+GET_STATUS = b'\x3F'
+GET_CURRENT_STATE = b'\x45'
 GET_DEVICE_TYPE = b'\xA5'
 SET_MODE = b'V'
 RESET_MODE = b'H'

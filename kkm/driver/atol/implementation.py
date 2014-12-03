@@ -11,7 +11,7 @@
  <3>: Курское ОАО "Счетмаш"
        Инструкция по программированию РЮИБ.466453.528 И15
        Машина электронная контрольно-кассовая Феликс-Р Ф
-<4>: Атол технологии
+ <4>: Атол технологии
        Приложение к протоколу работы ККМ (2009)
 """
 import logging
@@ -193,12 +193,12 @@ class Driver(base.KKMDriver):
             width = self._moneyWidth
         elif width > self._moneyWidth:
             log.error(str(
-                KKMWrongMoneyErr('Затребована ширина превышающая максимально допустимое значение')))
-            raise KKMWrongMoneyErr('Затребована ширина превышающая максимально допустимое значение')
+                WrongMoneyError('Затребована ширина превышающая максимально допустимое значение')))
+            raise WrongMoneyError('Затребована ширина превышающая максимально допустимое значение')
         if money > self._moneyMax:
             log.error(str(
-                KKMWrongMoneyErr('Число типа "money" превышает максимально допустимое значение')))
-            raise KKMWrongMoneyErr('Число типа "money" превышает максимально допустимое значение')
+                WrongMoneyError('Число типа "money" превышает максимально допустимое значение')))
+            raise WrongMoneyError('Число типа "money" превышает максимально допустимое значение')
         return number2atol(int(money), width)
 
     @staticmethod
@@ -219,10 +219,10 @@ class Driver(base.KKMDriver):
             width = self._quantityWidth
         elif width > self._quantityWidth:
             log.error('Required quantity number length greater than max allowed.')
-            raise KKMWrongQuantityErr()
+            raise WrongQuantityError()
         if quantity > self._quantityMax:
             log.error('Quantoty value greater than max allowed.')
-            raise KKMWrongQuantityErr(
+            raise WrongQuantityError(
                 'Число типа "quantity" превышает максимально допустимое значение.')
         quantity = str(quantity).encode('ascii')
         return number2atol(int(quantity), width)
@@ -258,9 +258,9 @@ class Driver(base.KKMDriver):
             self._device = serial.Serial(**self._params)
             super().open_device()
         except:
-            raise KKMCommonErr('System error at opening KKM device')
+            raise CommonError('System error at opening KKM device')
         if not self._device:
-            raise KKMCommonErr('Unknown error at opening KKM device')
+            raise CommonError('Unknown error at opening KKM device')
         log.debug('=== open_device() finished ===')
 
     def _set_read_timeout(self, timeout):
@@ -291,7 +291,9 @@ class Driver(base.KKMDriver):
                         continue
                     log.debug('Recieved: {}.'.format(symbol.get_symbol_name(response)))
                     if response == symbol.ACK:
-                        return self._retrieve_data(command, data)
+                        result = self._retrieve_data(command, data)
+                        log.debug('Response: [{}].'.format(result))
+                        return result
                     elif response == symbol.NAK:
                         log.debug('Sleep {}'.format(const.T1_TIMEOUT))
                         time.sleep(const.T1_TIMEOUT)
@@ -370,7 +372,7 @@ class Driver(base.KKMDriver):
                         else:  # (ch == symbol.STX):
                             log.debug('Reading until ETX.')
                             full_response = b''
-                            prev_symbol = b''
+                            dle_detected = False
                             no_data_retry_num = 0
                             self._set_read_timeout(const.T6_TIMEOUT)
                             while True:
@@ -384,17 +386,17 @@ class Driver(base.KKMDriver):
                                         no_data_retry_num += 1
                                     continue
                                 else:
-                                    if response == symbol.ETX and prev_symbol != symbol.DLE:
+                                    if response == symbol.ETX and not dle_detected:
                                         log.debug('[ETX detected]')
                                         break
                                     full_response += response
-                                    prev_symbol = response
-                            log.debug('Recieved data: {}.'.format(symbol.humanize(full_response)))
+                                    dle_detected = response == symbol.DLE and not dle_detected
+                            log.debug('Raw response: [{}].'.format(symbol.humanize(full_response)))
                             response = device.read(1)  # Ждем CRC
-                            log.debug('CRC data: {}.'.format(symbol.get_symbol_name(response)))
-                            if len(response) == 0:
-                                log.debug('No data.')
+                            if len(response) < 1:
+                                log.debug('No CRC data.')
                                 break
+                            log.debug('CRC data: [{}].'.format(response[0]))
                             calculated_crc = _calc_crc(full_response + symbol.ETX)
                             recieved_crc = ord(response)
                             log.debug('Calculated/recieved CRC: {}/{}'
@@ -503,12 +505,15 @@ class Driver(base.KKMDriver):
         log.info('=== get_current_state() ===')
         response = self._atol_send_data_sequence(self._kkm_password + cmd.GET_CURRENT_STATE)
         try:
-            mode = response[1] & 0x0F
-            submode = (response[1] & 0xF0) >> 4
-            printer = (response[2] & 0x02) == 1
-            paper = (response[2] & 0x01) == 1
-            result = (mode, submode, printer, paper,)
-            log.debug('mode={}, submode={}, printer={}, paper={}'.format(*result))
+            mode = response[1] & 0b1111
+            submode = response[1] >> 4
+            flags = response[2] >> 4
+            paper_fail = (flags & 0b0001) == 0b0001
+            printer_fail = (flags & 0b0010) == 0b0010
+            result = (mode, submode, printer_fail, paper_fail,)
+            log.debug('state={}.{}, paper_fail={}, printer_fail={} (flags:[{}]>>[{}])'
+                      .format(mode, submode, paper_fail, printer_fail,
+                              bin(response[2]), bin(flags)))
             log.debug('=== get_current_state() finished ===')
             return result
         except IndexError:
@@ -690,7 +695,7 @@ class Driver(base.KKMDriver):
                          number2atol(_check_types[check_type])))
         check_exception(self._atol_send_data_sequence(data))
 
-    def sell(self, name, price, quantity, department):
+    def sell(self, name, price, quantity=1000, department=0):
         """
         Продажа.
         Если режим TestOnly включен - выполнить только проверку возможности исполнения.
@@ -791,7 +796,7 @@ class Driver(base.KKMDriver):
                 if printer:
                     raise KKMPrinterConnectionErr()
                 if paper:
-                    raise KKMOutOfPaperErr()
+                    raise OutOfPaperError()
                 else:
                     return
 
@@ -805,7 +810,7 @@ class Driver(base.KKMDriver):
                 if printer:
                     raise KKMPrinterConnectionErr()
                 if paper:
-                    raise KKMOutOfPaperErr()
+                    raise OutOfPaperError()
                 else:
                     return
             else:
@@ -834,10 +839,10 @@ class Driver(base.KKMDriver):
             if printer:
                 raise KKMPrinterConnectionErr()
             if paper:
-                raise KKMOutOfPaperErr()
+                raise OutOfPaperError()
             else:
                 raise KKMReportErr()
-        log.info('=== z_report() finished ===')
+        log.debug('=== z_report() finished ===')
 
     def z_report_to_memory(self):
         """
@@ -859,10 +864,10 @@ class Driver(base.KKMDriver):
         """
         Распечатать отложенные Z-отчёты и отключить режим отложенных Z отчётов.
         """
-        log.info('=== z_report_from_memory():BEGIN ===')
+        log.info('=== z_report_from_memory() ===')
         data = self._kkm_password + cmd.Z_REPORT_FROM_MEM
         check_exception(self._atol_send_data_sequence(data))
-        log.info('=== z_report_from_memory():END ===')
+        log.debug('=== z_report_from_memory() finished ===')
 
     def common_clearing(self):
         check_exception(self._atol_send_data_sequence(self._kkm_password + cmd.COMMON_CLEAR))
@@ -874,7 +879,7 @@ class Driver(base.KKMDriver):
                 if printer:
                     raise KKMPrinterConnectionErr
                 if paper:
-                    raise KKMOutOfPaperErr
+                    raise OutOfPaperError
                 else:
                     return
             else:
