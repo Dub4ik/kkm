@@ -68,15 +68,15 @@ def check_exception(response):
     try:
         if response[0] != ord('U'):
             log.error('Wrong response {}'.format(response))
-            raise KKMUnknownAnswerErr()
+            raise WrongResponseError()
         else:
             code = response[1]
             if code > 0:
                 raise get_exception_by_error_code(code)
             return response
     except IndexError:
-        log.error(str(KKMUnknownAnswerErr))
-        raise KKMUnknownAnswerErr
+        log.error(str(WrongResponseError))
+        raise WrongResponseError
 
 
 def _escape(data):
@@ -193,12 +193,12 @@ class Driver(base.KKMDriver):
             width = self._moneyWidth
         elif width > self._moneyWidth:
             log.error(str(
-                WrongMoneyError('Затребована ширина превышающая максимально допустимое значение')))
-            raise WrongMoneyError('Затребована ширина превышающая максимально допустимое значение')
+                InvalidAmountError('Затребована ширина превышающая максимально допустимое значение')))
+            raise InvalidAmountError('Затребована ширина превышающая максимально допустимое значение')
         if money > self._moneyMax:
             log.error(str(
-                WrongMoneyError('Число типа "money" превышает максимально допустимое значение')))
-            raise WrongMoneyError('Число типа "money" превышает максимально допустимое значение')
+                InvalidAmountError('Число типа "money" превышает максимально допустимое значение')))
+            raise InvalidAmountError('Число типа "money" превышает максимально допустимое значение')
         return number2atol(int(money), width)
 
     @staticmethod
@@ -219,10 +219,10 @@ class Driver(base.KKMDriver):
             width = self._quantityWidth
         elif width > self._quantityWidth:
             log.error('Required quantity number length greater than max allowed.')
-            raise WrongQuantityError()
+            raise InvalidQuantityError()
         if quantity > self._quantityMax:
             log.error('Quantoty value greater than max allowed.')
-            raise WrongQuantityError(
+            raise InvalidQuantityError(
                 'Число типа "quantity" превышает максимально допустимое значение.')
         quantity = str(quantity).encode('ascii')
         return number2atol(int(quantity), width)
@@ -243,7 +243,7 @@ class Driver(base.KKMDriver):
         model_info = _models_table.get(model)
         if not model_info:
             log.error('Unknow device {}'.format(model))
-            raise KKMUnknownModelErr()
+            raise UnknownModelError()
         self._str_max = model_info[_atol_StringMax_idx]
         self._klishe_max = model_info[_atol_KlisheMax_idx]
         self._klishe_len = model_info[_atol_KlisheLen_idx]
@@ -312,8 +312,8 @@ class Driver(base.KKMDriver):
         except OSError as e:  # for Linux
             exc = sys.exc_info()
             if exc[1].errno == 19:
-                log.error(KKMNoDeviceErr())
-                raise KKMNoDeviceErr()
+                log.error(DeviceNotFoundError())
+                raise DeviceNotFoundError()
             else:
                 log.error(e)
                 raise KKMConnectionErr()
@@ -445,14 +445,14 @@ class Driver(base.KKMDriver):
             data = self._kkm_password + cmd.GET_LAST_SUMMARY
             return self._atol2money(check_exception(self._atol_send_data_sequence(data))[2:])
         except IndexError:
-            raise KKMUnknownAnswerErr
+            raise WrongResponseError
 
     def get_status(self):
         log.info('=== get_status() ===')
         response = self._atol_send_data_sequence(self._kkm_password + cmd.GET_STATUS)
         try:
             if response[0] != ord('D'):
-                raise KKMUnknownAnswerErr()
+                raise WrongResponseError()
             cashier = atol2number(response[1:2])
             site = atol2number(response[2:3])
             kkm_datetime = atol_datetime_to_native_datetime(response[3:9])
@@ -479,7 +479,7 @@ class Driver(base.KKMDriver):
             log.debug('=== get_status() finished ===')
             return result
         except IndexError:
-            raise KKMUnknownAnswerErr()
+            raise WrongResponseError()
 
     def get_kkm_id(self):
         """Запрос уникального идентификатора ККМ.
@@ -517,7 +517,7 @@ class Driver(base.KKMDriver):
             log.debug('=== get_current_state() finished ===')
             return result
         except IndexError:
-            raise KKMUnknownAnswerErr()
+            raise WrongResponseError()
 
     def get_current_mode(self):
         """Запрос режима ККМ
@@ -547,7 +547,7 @@ class Driver(base.KKMDriver):
             build = atol2number(response[9:11])
             name = response[11:]
         except IndexError:
-            raise KKMUnknownAnswerErr
+            raise WrongResponseError
         result = {'error': error, 'protocol': protocol, 'type': type_, 'model': model, 'mode': mode,
                   'majorver': majorver, 'minorver': minorver, 'codepage': codepage, 'build': build,
                   'name': name.decode('cp866')}
@@ -608,7 +608,7 @@ class Driver(base.KKMDriver):
 
     def set_inspector_mode(self, password):
         # self.SetMode(_atol_Inspector_mode, password)
-        raise NotImplementedError
+        raise FunctionNotImplementedError
 
     # Общие команды
 
@@ -814,7 +814,7 @@ class Driver(base.KKMDriver):
                 else:
                     return
             else:
-                raise KKMReportErr()
+                raise ReportInterruptedError()
 
     def open_session(self, text=''):
         log.info('=== open_session(\'{}\')'.format(text))
@@ -835,13 +835,13 @@ class Driver(base.KKMDriver):
                 mode, submode, printer, paper = self.get_current_state()
         else:
             if mode == 3 and submode == 0:
-                raise KKMFiscalMemoryOverflowErr()
+                raise FiscalMemoryOverflowError()
             if printer:
                 raise KKMPrinterConnectionErr()
             if paper:
                 raise OutOfPaperError()
             else:
-                raise KKMReportErr()
+                raise ReportInterruptedError()
         log.debug('=== z_report() finished ===')
 
     def z_report_to_memory(self):
@@ -858,7 +858,7 @@ class Driver(base.KKMDriver):
             log.debug('=== z_report_to_memory() finished ===')
             return response
         except IndexError:
-            raise KKMUnknownAnswerErr
+            raise WrongResponseError
 
     def z_report_from_memory(self):
         """
@@ -883,7 +883,7 @@ class Driver(base.KKMDriver):
                 else:
                     return
             else:
-                raise KKMReportErr
+                raise ReportInterruptedError
 
     def report(self, report_type):
         report_table = {
@@ -898,7 +898,7 @@ class Driver(base.KKMDriver):
         }
         report = report_table.get(report_type)
         if not report:
-            raise KKMReportErr('Unknown report type.')
+            raise ReportInterruptedError('Unknown report type.')
         if report[1] is not None:
             report[0](self, report[1])
         else:
@@ -915,7 +915,7 @@ class Driver(base.KKMDriver):
             log.debug('=== read_table({}, {}, {}) finished ==='.format(table, row, field))
             return result
         except IndexError:
-            raise KKMUnknownAnswerErr
+            raise WrongResponseError
 
     def _write_table(self, table, row, field, value):
         log.info('=== write_table(table={}, row={}, field={}, val={}) ==='
@@ -966,7 +966,7 @@ class Driver(base.KKMDriver):
                 elif callable(trans):
                     value = trans(v)
                 else:
-                    raise NotImplementedError()
+                    raise FunctionNotImplementedError()
                 if bitmask is not None:
                     old_value = self._read_table(table, row, field)[0]
                     value |= (old_value & ~bitmask)
@@ -978,11 +978,11 @@ class Driver(base.KKMDriver):
                 elif rtype == 'int':
                     value = number2atol(value, length * 2)  # по 2 знака на байт!
                 else:
-                    raise NotImplementedError
+                    raise FunctionNotImplementedError
                 self._write_table(table, row, field, value)
             log.info('=== programming({}) finished'.format(kwargs))
         except KeyError:
-            raise NotImplementedError()
+            raise FunctionNotImplementedError()
 
     def set_kkm_password(self, password):
         self._kkm_password = number2atol(password, 4)

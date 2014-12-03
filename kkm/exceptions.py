@@ -6,13 +6,6 @@ Copyright (c) 2005,2007
 
 
 class KKMException(Exception):
-    """"""
-    _defaultMessage = ''
-    _defaultCode = 0
-    _drvMsg = ''
-    _drvCode = 0
-    _msg = ''
-
     def __init__(self, code=0, message=''):
         if self.__class__ is KKMException:
             raise RuntimeError('KKMException should not be instantiated directly')
@@ -23,56 +16,53 @@ class KKMException(Exception):
 
 
 class CommonError(KKMException):
-    _defaultMessage = 'KKM ERROR'
-    _defaultCode = 1
+    pass
 
 
-class KKMUnknownErr(KKMException):
-    """
-    Неизвестная ошибка
-    """
-    _defaultMessage = 'Unknown error'
-    _defaultCode = 2
+class UnknownError(KKMException):
+    def __init__(self):
+        super().__init__(2, 'Unknown error')
 
 
-class KKMUnknownModelErr(KKMException):
-    """
-    Неизвестная модель ККМ
-    """
-    _defaultMessage = 'Unknown KKM model'
-    _defaultCode = 3
+class UnknownModelError(KKMException):
+    def __init__(self):
+        super().__init__(3, 'Unknown KKM model')
 
 
-class NotImplementedError(KKMException):
+class FunctionNotImplementedError(KKMException):
     """
     Не реализованная функция
     """
-    _defaultMessage = 'Not implemented'
-    _defaultCode = 4
+
+    def __init__(self):
+        super().__init__(4, 'Not implemented')
 
 
-class KKMUnknownAnswerErr(KKMException):
+class WrongResponseError(KKMException):
     """
     Неверный формат ответа от ККМ
     """
-    _defaultMessage = 'Wrong response'
-    _defaultCode = 5
+
+    def __init__(self):
+        super().__init__(5, 'Wrong response')
 
 
 class KKMConnectionErr(KKMException):
     """
     Нет связи с ККМ
     """
-    _defaultMessage = 'KKM connection error'
-    _defaultCode = 6
+
+    def __init__(self):
+        super().__init__(6, 'KKM connection error')
 
 
 class KKMNoAnswerErr(KKMException):
     """
     Нет ответа от ККМ
     """
-    _defaultMessage = 'No response from KKM'
-    _defaultCode = 7
+
+    def __init__(self):
+        super().__init__(7, 'No response from KKM')
 
 
 class KKMPrinterConnectionErr(KKMException):
@@ -87,120 +77,135 @@ class OutOfPaperError(KKMException):
     """
     Нет бумаги
     """
-    _defaultMessage = 'No paper'
-    _defaultCode = 9
+
+    def __init__(self):
+        super().__init__(103, 'No paper or paper jammed')
 
 
-class KKMWrongPasswordErr(KKMException):
+class WrongPasswordError(KKMException):
     """
     Недопустимый пароль
     """
-    _defaultMessage = 'Wrong password (1)'
-    _defaultCode = 10
+
+    def __init__(self):
+        super().__init__(10, 'Wrong password (1)')
 
 
-class KKMIncorrectPasswordErr(KKMException):
+class WrongPassword2Error(KKMException):
     """
     Недопустимый пароль
     """
-    _defaultMessage = 'Wrong password (2)'
-    _defaultCode = 11
+
+    def __init__(self):
+        super().__init__(11, 'Wrong password (1)')
 
 
-class WrongMoneyError(KKMException):
+class InvalidAmountError(KKMException):
     """
     Неверная цена (сумма)
     """
-    _defaultMessage = 'Wrong amount'
-    _defaultCode = 12
+
+    def __init__(self):
+        super().__init__(8, 'Invalid amount')
 
 
-class WrongQuantityError(KKMException):
+class InvalidQuantityError(KKMException):
     """
     Неверное количество
     """
-    _defaultMessage = 'Wrong quantity'
-    _defaultCode = 13
+
+    def __init__(self):
+        super().__init__(10, 'Invalid quantity')
 
 
-class KKMMultiplyOverflowErr(KKMException):
+class MultiplyOverflowErr(KKMException):
     """
     Переполнение при умножении
     """
-    _defaultMessage = 'KKM overflow error on multilpy'
-    _defaultCode = 14
+
+    def __init__(self):
+        super().__init__(14, 'KKM overflow error on multilpy')
 
 
-class KKMWrongDateErr(KKMException):
+class InvalidDateError(KKMException):
     """
     Неверная дата
     """
-    _defaultMessage = 'Wrong date'
-    _defaultCode = 15
+
+    def __init__(self):
+        super().__init__(15, 'Invalid date')
 
 
-class KKMWrongTimeErr(KKMException):
+class InvalidTimeError(KKMException):
     """
     Неверное время
     """
-    _defaultMessage = 'Wrond time'
-    _defaultCode = 16
+
+    def __init__(self):
+        super().__init__(16, 'Invalid time')
 
 
 class LowPaymentError(KKMException):
     """
     Вносимая клиентом сумма меньше суммы чека
     """
-    _defaultMessage = 'Low payment'
-    _defaultCode = 17
+
+    def __init__(self):
+        super().__init__(134, 'Low payment')
 
 
-class KKMFiscalMemoryOverflowErr(KKMException):
+class FiscalMemoryOverflowError(KKMException):
     """
     Фискальная память переполнена
     """
-    _defaultMessage = 'Fiscal memory overflow'
-    _defaultCode = 18
+
+    def __init__(self):
+        super().__init__(18, 'Fiscal memory overflow')
 
 
 class InvalidModeForOperationError(KKMException):
     """
     Необходима смена режима для выполнения команды
     """
-    _defaultMessage = 'Incorrect mode'
-    _defaultCode = 18
+
+    def __init__(self):
+        super().__init__(102, 'Invalid mode for requested operation')
 
 
-class KKMNoDeviceErr(KKMException):
+class DeviceNotFoundError(KKMException):
     """
     Устройство ККМ не найдено
     """
-    _defaultMessage = 'KKM device not found'
-    _defaultCode = 20
+
+    def __init__(self):
+        super().__init__(20, 'KKM device not found')
 
 
-class KKMReportErr(KKMException):
+class ReportInterruptedError(KKMException):
     """
     Снятие отчета прервалось
     """
-    _defaultMessage = 'Report interrupted'
-    _defaultCode = 21
+
+    def __init__(self):
+        super().__init__(21, 'Report interrupted')
 
 
 class ZReportRequiredError(KKMException):
     """
     Смена превысила 24 часа
     """
-    _defaultMessage = '24 hours exceded'
-    _defaultCode = 22
+
+    def __init__(self):
+        super().__init__(136, '24 hours exceded')
 
 
 class DoubleZReportError(KKMException):
     """
     Обнуленная касса (повторное гашение не возможно)
     """
-    _defaultMessage = 'Session already closed'
-    _defaultCode = 23
+
+    def __init__(self):
+        super().__init__(143, 'Session already closed')
 
 
 class SessionAlreadyOpenedError(KKMException):
@@ -214,24 +219,24 @@ class SessionAlreadyOpenedError(KKMException):
 
 exception_table = {
     1: CommonError(1, 'Контрольная лента обработана без ошибок.'),
-    8: WrongMoneyError(8),
-    10: WrongQuantityError(10),
+    8: InvalidAmountError(),
+    10: InvalidQuantityError(),
     15: CommonError(15, 'Повторная скидка на операцию не возможна'),
     20: CommonError(20, 'Неверная длина'),
     26: CommonError(26, 'Отчет с гашением прерван. Вход в режим заблокирован'),
     30: CommonError(30, 'Вход в режим заблокирован'),
-    102: InvalidModeForOperationError(102),
-    103: OutOfPaperError(103),
+    102: InvalidModeForOperationError(),
+    103: OutOfPaperError(),
     106: CommonError(106, 'Неверный тип чека'),
     114: CommonError(114, 'Сумма платежей меньше суммы чека'),
     117: CommonError(117, 'Переполнение суммы платежей'),
     122: CommonError(122, 'Данная модель ККМ не может выполнить команду'),
     123: CommonError(123, 'Неверная величина скидки / надбавки'),
     127: CommonError(127, 'Переполнение при умножении'),
-    134: LowPaymentError(134),
-    136: ZReportRequiredError(136),
+    134: LowPaymentError(),
+    136: ZReportRequiredError(),
     140: CommonError(140, 'Неверный пароль'),
-    143: DoubleZReportError(143),
+    143: DoubleZReportError(),
     151: CommonError(151, 'Подсчет суммы сдачи не возможен'),
     154: CommonError(154, 'Чек закрыт - операция невозможна'),
     155: CommonError(155, 'Чек открыт - операция невозможна'),
