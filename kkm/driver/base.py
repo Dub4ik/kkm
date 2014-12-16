@@ -56,7 +56,7 @@ class KkmMeta(type):
             try:
                 log.debug('KkmMeta.autoCreate type={} device={}'.format(kkm, port_params))
                 return kkm(port_params, password)
-            except err.KKMException:
+            except err.KKMError:
                 pass
         log.critical('Нет связи с ККМ или неизвестная модель ККМ')
         raise err.CommonError('Нет связи с ККМ или неизвестная модель ККМ')

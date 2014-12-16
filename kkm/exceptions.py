@@ -5,9 +5,9 @@ Copyright (c) 2005,2007
 """
 
 
-class KKMException(Exception):
+class KKMError(Exception):
     def __init__(self, code=0, message=''):
-        if self.__class__ is KKMException:
+        if self.__class__ is KKMError:
             raise RuntimeError('KKMException should not be instantiated directly')
         super().__init__(code, message)
 
@@ -15,21 +15,21 @@ class KKMException(Exception):
         return '{}: {}'.format(*self.args)
 
 
-class CommonError(KKMException):
+class CommonError(KKMError):
     pass
 
 
-class UnknownError(KKMException):
+class UnknownError(KKMError):
     def __init__(self):
         super().__init__(2, 'Unknown error')
 
 
-class UnknownModelError(KKMException):
+class UnknownModelError(KKMError):
     def __init__(self):
         super().__init__(3, 'Unknown KKM model')
 
 
-class FunctionNotImplementedError(KKMException):
+class FunctionNotImplementedError(KKMError):
     """
     Не реализованная функция
     """
@@ -38,7 +38,7 @@ class FunctionNotImplementedError(KKMException):
         super().__init__(4, 'Not implemented')
 
 
-class WrongResponseError(KKMException):
+class WrongResponseError(KKMError):
     """
     Неверный формат ответа от ККМ
     """
@@ -47,7 +47,7 @@ class WrongResponseError(KKMException):
         super().__init__(5, 'Wrong response')
 
 
-class KKMConnectionErr(KKMException):
+class KKMConnectionErr(KKMError):
     """
     Нет связи с ККМ
     """
@@ -56,7 +56,7 @@ class KKMConnectionErr(KKMException):
         super().__init__(6, 'KKM connection error')
 
 
-class KKMNoAnswerErr(KKMException):
+class KKMNoAnswerErr(KKMError):
     """
     Нет ответа от ККМ
     """
@@ -65,7 +65,7 @@ class KKMNoAnswerErr(KKMException):
         super().__init__(7, 'No response from KKM')
 
 
-class KKMPrinterConnectionErr(KKMException):
+class KKMPrinterConnectionErr(KKMError):
     """
     Нет связи с принтером
     """
@@ -73,7 +73,7 @@ class KKMPrinterConnectionErr(KKMException):
     _defaultCode = 8
 
 
-class OutOfPaperError(KKMException):
+class OutOfPaperError(KKMError):
     """
     Нет бумаги
     """
@@ -82,7 +82,7 @@ class OutOfPaperError(KKMException):
         super().__init__(103, 'No paper or paper jammed')
 
 
-class WrongPasswordError(KKMException):
+class WrongPasswordError(KKMError):
     """
     Недопустимый пароль
     """
@@ -91,7 +91,7 @@ class WrongPasswordError(KKMException):
         super().__init__(10, 'Wrong password (1)')
 
 
-class WrongPassword2Error(KKMException):
+class WrongPassword2Error(KKMError):
     """
     Недопустимый пароль
     """
@@ -100,7 +100,7 @@ class WrongPassword2Error(KKMException):
         super().__init__(11, 'Wrong password (1)')
 
 
-class InvalidAmountError(KKMException):
+class InvalidAmountError(KKMError):
     """
     Неверная цена (сумма)
     """
@@ -109,7 +109,7 @@ class InvalidAmountError(KKMException):
         super().__init__(8, 'Invalid amount')
 
 
-class InvalidQuantityError(KKMException):
+class InvalidQuantityError(KKMError):
     """
     Неверное количество
     """
@@ -118,7 +118,7 @@ class InvalidQuantityError(KKMException):
         super().__init__(10, 'Invalid quantity')
 
 
-class MultiplyOverflowErr(KKMException):
+class MultiplyOverflowErr(KKMError):
     """
     Переполнение при умножении
     """
@@ -127,7 +127,7 @@ class MultiplyOverflowErr(KKMException):
         super().__init__(14, 'KKM overflow error on multilpy')
 
 
-class InvalidDateError(KKMException):
+class InvalidDateError(KKMError):
     """
     Неверная дата
     """
@@ -136,7 +136,7 @@ class InvalidDateError(KKMException):
         super().__init__(15, 'Invalid date')
 
 
-class InvalidTimeError(KKMException):
+class InvalidTimeError(KKMError):
     """
     Неверное время
     """
@@ -145,7 +145,7 @@ class InvalidTimeError(KKMException):
         super().__init__(16, 'Invalid time')
 
 
-class LowPaymentError(KKMException):
+class LowPaymentError(KKMError):
     """
     Вносимая клиентом сумма меньше суммы чека
     """
@@ -154,7 +154,7 @@ class LowPaymentError(KKMException):
         super().__init__(134, 'Low payment')
 
 
-class FiscalMemoryOverflowError(KKMException):
+class FiscalMemoryOverflowError(KKMError):
     """
     Фискальная память переполнена
     """
@@ -163,7 +163,7 @@ class FiscalMemoryOverflowError(KKMException):
         super().__init__(18, 'Fiscal memory overflow')
 
 
-class InvalidModeForOperationError(KKMException):
+class InvalidModeForOperationError(KKMError):
     """
     Необходима смена режима для выполнения команды
     """
@@ -172,7 +172,7 @@ class InvalidModeForOperationError(KKMException):
         super().__init__(102, 'Invalid mode for requested operation')
 
 
-class DeviceNotFoundError(KKMException):
+class DeviceNotFoundError(KKMError):
     """
     Устройство ККМ не найдено
     """
@@ -181,7 +181,7 @@ class DeviceNotFoundError(KKMException):
         super().__init__(20, 'KKM device not found')
 
 
-class ReportInterruptedError(KKMException):
+class ReportInterruptedError(KKMError):
     """
     Снятие отчета прервалось
     """
@@ -190,7 +190,7 @@ class ReportInterruptedError(KKMException):
         super().__init__(21, 'Report interrupted')
 
 
-class ZReportRequiredError(KKMException):
+class ZReportRequiredError(KKMError):
     """
     Смена превысила 24 часа
     """
@@ -199,7 +199,7 @@ class ZReportRequiredError(KKMException):
         super().__init__(136, '24 hours exceded')
 
 
-class DoubleZReportError(KKMException):
+class SessionClosedError(KKMError):
     """
     Обнуленная касса (повторное гашение не возможно)
     """
@@ -208,7 +208,17 @@ class DoubleZReportError(KKMException):
         super().__init__(143, 'Session already closed')
 
 
-class SessionAlreadyOpenedError(KKMException):
+class CheckClosedError(KKMError):
+    def __init__(self):
+        super().__init__(154, 'Check closed, operation not allowed.')
+
+
+class CheckAlreadyOpenedError(KKMError):
+    def __init__(self):
+        super().__init__(155, 'Check opened, operation not allowed.')
+
+
+class SessionOpenedError(KKMError):
     """
     Смена открыта - операция невозможна
     """
@@ -236,11 +246,11 @@ exception_table = {
     134: LowPaymentError(),
     136: ZReportRequiredError(),
     140: CommonError(140, 'Неверный пароль'),
-    143: DoubleZReportError(),
+    143: SessionClosedError(),
     151: CommonError(151, 'Подсчет суммы сдачи не возможен'),
-    154: CommonError(154, 'Чек закрыт - операция невозможна'),
-    155: CommonError(155, 'Чек открыт - операция невозможна'),
-    156: SessionAlreadyOpenedError(),
+    154: CheckClosedError(),
+    155: CheckAlreadyOpenedError(),
+    156: SessionOpenedError(),
     190: CommonError(190, 'Необходимо провести профилактические работы'),
     201: CommonError(201, 'Нет связи с внешним устройством'),
     209: CommonError(209, 'Перегрев головки принтера'),
