@@ -6,3 +6,5 @@
 build
 dist
 kkm.egg-info
+*.log
+tools/*.py
