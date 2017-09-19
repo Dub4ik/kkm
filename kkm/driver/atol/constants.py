@@ -1,7 +1,8 @@
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 from enum import Enum
 from . import commands
 
+Enum
 
 CON_ATTEMPTS = 100  # Ожидание первого ACK
 ANS_ATTEMPTS = 100  # Ожидание STX
@@ -36,7 +37,8 @@ T5_TIMEOUT_MAP = {
     0xad: 120,
 }
 
-NO_DATA_RETRY_COUNT = 30  # Hack for some cases if not data recieved during response reading
+# Hack for some cases if not data recieved during response reading
+NO_DATA_RETRY_COUNT = 30
 
 
 def get_t5_timeout_for(command):

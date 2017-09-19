@@ -1,0 +1,6 @@
+nose
+pyBarcode
+Pillow
+pyserial
+pudb
+# swi prolog under the path

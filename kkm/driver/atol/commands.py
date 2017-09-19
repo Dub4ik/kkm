@@ -1,4 +1,4 @@
-# -*- coding: utf8 -*-
+# -*- coding: utf-8 -*-
 GET_LAST_SUMMARY = b'\x58'
 GET_STATUS = b'\x3F'
 GET_CURRENT_STATE = b'\x45'
