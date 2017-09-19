@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: utf8 -*-
 SELECT = 0
 REGISTRATION = 1
 X_REPORT = 2

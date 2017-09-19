@@ -1,3 +1,0 @@
-# pyBarcode
-# Pillow
-pyserial
