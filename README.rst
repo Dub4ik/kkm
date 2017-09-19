@@ -5,22 +5,38 @@ KKM
 Contributors
 ------------
 - Copyright (c) 2005, 2012
-- Marat Khayrullin <xmm.dev@gmail.com>
+- Original Code: Marat Khayrullin <xmm.dev@gmail.com>
 - https://github.com/xmm/kkm/
+
+- Copyright (c) 2015, 2017
+- Extended Version: Eugene Kaltashkin <aborche.aborche@gmail.com>
+- https://github.com/aborche/kkm/
+
 
 Introduction
 ------------
 Библиотека, написанная на языке python, для работы с 
-контрольно-кассовыми машинами (фискальными регистраторами).
-Реализован обобщенный интерфейс и драйвер реализующий протокол Atol 
-к ккм "Феликс-Р [ФК]" производства Курское ОАО "Счетмаш" и 
-PayVKP-80K от Paykiosk.ru
+контрольно-кассовыми машинами (фискальными регистраторами до выхода 54-ФЗ).
+Отличия от оригинала:
+
+- Модифицирован драйвер реализующий протокол Atol 2.4 используемый в ККТ АТОЛ и PayVKP-80K от Paykiosk.ru
+- Добавлены таблицы настроек ККТ(АТОЛ,PayKiosk)
+- Добавлен Application сервер для uwsgi
+- Изменены процедуры программирования и конвертации данных
+- Добавлена возможность обхода фискального регистратора в части печати текста и штрихкодов напрямую через команды принтера(для PayVKP-80K)
+- Добавлено логирование
+- Добавлены расширенные коды ошибок
+- Добавлен опрос статуса принтера
+- Добавлен транскодинг символов не существующих в cp866
+- Добавлен транскодинг utf-8 <-> cp866
+
+Код выложен AS IS с отладочной и тестовыми средами.
 
 Requirements
 ------------
 Для работы необходим модуль serial.  
-Под win32 последний раз проверялся в 2005,
-под Linux работает сейчас - ноябрь 2012. 
+Модуль ККМ успешно работал до введения 54-ФЗ в Иркутском планетарии.
+Не пытайтесь распечатывать при его помощи билеты! Билеты валидируются билетной системой
 
 Использованные документы
 ------------------------
@@ -34,6 +50,8 @@ Requirements
        Машина электронная контрольно-кассовая Феликс-Р Ф
  <4>: Атол технологии
        Приложение к протоколу работы ККМ (2009)
+ <5>: PayKiosk
+       Дополнения к протоколу 1
 
 License
 -------
@@ -48,27 +66,4 @@ Installation
 
 Usage
 -----
-Инициализация фискальника::
-
-     import kkm
-     kkmDev = kkm.KkmMeta.autoCreate({'port': '/dev/ttyS0', 'baudrate': 115200})
-
-или выбрать конкретный драйвер::
-
-     kkm.Atol.AtolKKM({'port': '/dev/ttyS0', 'baudrate': 115200})
-
-Проведение оплаты со скидкой на весь чек::
-
-     kkmDev.setRegistrationMode(KKM_PASSWORD) 
-     kkmDev.OpenCheck() 
-     kkmDev.Sell(name.strip(), Decimal(price.strip()), Decimal(count.strip()), 0) 
-     kkmDev.Discount(discount, kkm.kkm_Check_dis) 
-     kkmDev.Payment(payment) 
-
-Вывод сообщения на дисплей покупателя::
-
-     kkmDev.PrintToDisplay('\x0C')
-     kkmDev.PrintToDisplay('')
-     max = kkmDev.getDisplayStringMax()
-     kkmDev.PrintToDisplay('Спасибо'.center(max))
-     kkmDev.PrintToDisplay('за покупку!'.center(max))
+Для примеров использования драйвера смотрите файлы vkp_testkit.py и wsgi.py.

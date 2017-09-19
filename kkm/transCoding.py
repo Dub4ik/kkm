@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 '''
-Copyright (c) 2005,20012
-@author: Marat Khayrullin <xmm.dev@gmail.com>
+ Copyright (c) 2017
+ @extended code author: Evgeny Kaltashkin <zhecka@gmail.com>
+
+ Copyright (c) 2005, 2012
+ @original code author: Marat Khayrullin <xmm.dev@gmail.com>
 '''
 
 import locale
@@ -25,7 +28,7 @@ class translateMeta(type):
         cls.__registry[name] = cls
 
     def getTableByAlias(cls, name):
-        for tbl in list(cls.__registry.values()):
+        for tbl in cls.__registry.values():
             for alias in tbl.aliases:
                 if alias == name:
                     return tbl
@@ -67,8 +70,8 @@ class translateMeta(type):
 
 
 #transTable = object
-class transTable(object, metaclass=translateMeta):
-    pass
+class transTable(object):
+    __metaclass__ = translateMeta
 
 
 class koi8r(transTable):
